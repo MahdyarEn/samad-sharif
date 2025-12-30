@@ -1,0 +1,27 @@
+{
+  "name": "samad-sharif",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MahdyarEn/samad-sharif.git"
+  },
+  "author": "MahdyarEn",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/MahdyarEn/samad-sharif/issues"
+  },
+  "homepage": "https://github.com/MahdyarEn/samad-sharif#readme",
+  "dependencies": {
+    "axios": "^1.13.2",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "mysql2": "^3.16.0",
+    "node-telegram-bot-api": "^0.67.0"
+  }
+}
