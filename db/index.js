@@ -22,3 +22,10 @@ export async function getSession(pool, telegramId) {
   const [rows] = await pool.query(`SELECT * FROM users WHERE id = ?`, [telegramId]);
   return rows[0] || null;
 }
+
+export async function savefoodPriority(pool, userId, food_priority) {
+  await pool.query("UPDATE users SET food_priority = ? WHERE id = ?", [JSON.stringify(food_priority), userId]);
+}
+export async function saveDays(pool, userId, days) {
+  await pool.query("UPDATE users SET days = ? WHERE id = ?", [JSON.stringify(days), userId]);
+}

@@ -1,13 +1,7 @@
-import { loginUser, reserveFood } from "../api/services.js";
+import { loginUser } from "../api/services.js";
 import { getUser, saveSession } from "../db/index.js";
-import TelegramBot from "node-telegram-bot-api";
 import { backKeyboard, buildHomeKeyboard } from "../utils/index.js";
-// import handleState from "./state.hander.js";
 
-/**
- * @param {TelegramBot} bot
- * @param {import("node-telegram-bot-api").Message} msg
- */
 export default async function handleMessage(bot, msg, pool, userState) {
   try {
     if (msg.chat.type !== "private") return;
