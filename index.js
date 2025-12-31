@@ -41,8 +41,10 @@ async function initDb() {
 async function startBot() {
   const bot = new TelegramBot(config.TOKEN, { polling: true });
 
-  bot.on("message", (msg) => handleMessage(bot, msg, pool));
-  bot.on("callback_query", (query) => handleCallback(bot, query, pool));
+  const userState = new Map();
+
+  bot.on("message", (msg) => handleMessage(bot, msg, pool, userState));
+  bot.on("callback_query", (query) => handleCallback(bot, query, pool, userState));
 
   const me = await bot.getMe();
   console.log(`🤖 Bot started: @${me.username}`);
