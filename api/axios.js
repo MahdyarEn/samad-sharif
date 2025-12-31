@@ -4,15 +4,15 @@ const BASE_URL = "https://setad.dining.sharif.edu";
 
 const app = axios.create({
   baseURL: BASE_URL,
+  validateStatus: (status) => status < 500,
+  headers: {
+    "Content-Type": "application/x-www-form-urlencoded",
+  },
 });
-
-app.interceptors.request.use(
-  (res) => res,
-  (err) => Promise.reject(err)
-);
 
 const api = {
   get: app.get,
   post: app.post,
+  put: app.put,
 };
 export default api;

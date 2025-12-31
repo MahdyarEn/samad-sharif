@@ -15,7 +15,22 @@ const pool = mysql.createPool({
 
 async function initDb() {
   try {
-    await pool.query("SELECT 1");
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS users (
+        id INT PRIMARY KEY,
+
+        username VARCHAR(100) DEFAULT NULL,
+        password VARCHAR(100) DEFAULT NULL,
+
+        access_token TEXT DEFAULT NULL,
+        refresh_token TEXT DEFAULT NULL,
+
+        expires_at DATETIME DEFAULT NULL,
+
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          ON UPDATE CURRENT_TIMESTAMP
+      )`);
     console.log("✅ MySQL connected");
   } catch (err) {
     console.error("❌ DB connection failed:", err.message);
