@@ -19,20 +19,17 @@ export async function loginUser(username, password) {
     .then(({ data }) => data);
 }
 
-export async function getSelfWeekPrograms(access_token) {
-  return api
-    .get(`/rest/reservations/programs/v2?selfId=1&weekStartDate=2026-01-03+00:00:00`, {
-      headers: {
-        authorization: `Bearer ${access_token}`,
-      },
-    })
-    .then(({ data }) => data?.payload?.selfWeekPrograms);
+export async function getSelfWeekPrograms(token, weekStartDate) {
+  return api.get(`/rest/reservations/programs/v2?selfId=1&weekStartDate=${weekStartDate}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    validateStatus: () => true,
+  });
 }
 
-export async function reserveFood(user, foodName) {
-  const selfWeekPrograms = await getSelfWeekPrograms(user.access_token);
+export async function reserveFood(user, foodName, selfWeekPrograms) {
   const program = await getProgramByFoodName(selfWeekPrograms, foodName);
-
   return api
     .put(
       `/rest/reserves/${program.programId}/reserve`,
@@ -68,5 +65,14 @@ export async function getAllReservation(username, password, access_token) {
         },
       }
     )
+    .then(({ data }) => data);
+}
+export async function fetchUserProfile(access_token) {
+  return api
+    .get(`/rest/users/nurture-profiles`, {
+      headers: {
+        authorization: `Bearer ${access_token}`,
+      },
+    })
     .then(({ data }) => data);
 }

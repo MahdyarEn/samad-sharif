@@ -9,7 +9,36 @@ export default async function handleMessage(bot, msg, pool, userState) {
     const text = msg.text?.trim();
     let user = await getUser(fromId, pool);
     if (!user) {
-      await pool.query("INSERT INTO users (id) VALUES (?)", [fromId]);
+      await pool.query("INSERT INTO users (id,days) VALUES (?,?)", [
+        fromId,
+        JSON.stringify([
+          {
+            id: 0,
+            title: "شنبه",
+            english: "Saturday",
+          },
+          {
+            id: 1,
+            title: "یکشنبه",
+            english: "Sunday",
+          },
+          {
+            id: 2,
+            title: "دوشنبه",
+            english: "Monday",
+          },
+          {
+            id: 3,
+            title: "سه‌شنبه",
+            english: "Tuesday",
+          },
+          {
+            id: 4,
+            title: "چهارشنبه",
+            english: "Wednesday",
+          },
+        ]),
+      ]);
     }
 
     switch (true) {
@@ -20,7 +49,7 @@ export default async function handleMessage(bot, msg, pool, userState) {
 به ربات رزرو خودکار غذا از سایت سماد مخصوص دانشجویان شریف خوش آمدید
 
 برای شروع یکی از دکمه های زیر را انتخاب کنید 👇 `,
-          { reply_markup: buildHomeKeyboard(!!user.username) }
+          { reply_markup: buildHomeKeyboard(!!user?.username) }
         );
 
         break;
@@ -43,7 +72,7 @@ export default async function handleMessage(bot, msg, pool, userState) {
           const res = await loginUser(state.data.username, state.data.password, fromId, pool);
 
           if (res?.access_token) {
-            saveSession(pool, fromId, text, state.data.username, res);
+            saveSession(pool, fromId, state.data.username, text, res);
             await bot.sendMessage(
               fromId,
               `✅ ورود با موفقیت به اکانت شما انجام شد
@@ -60,6 +89,7 @@ export default async function handleMessage(bot, msg, pool, userState) {
 حالا یکی از عملیات زیر را انتخاب کنید 👇`,
               { reply_markup: buildHomeKeyboard(true), parse_mode: "HTML" }
             );
+            userState.delete(fromId);
           } else {
             userState.delete(fromId);
             await bot.sendMessage(fromId, "⭕️ اطلاعات کاربری وارد شده صحت ندارد، عملیات لغو شد.", { reply_markup: buildHomeKeyboard(false) });

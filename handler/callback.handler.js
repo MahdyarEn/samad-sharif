@@ -1,6 +1,6 @@
-import { backKeyboard, buildDaysKeyboard, buildDaysText, buildFoodKeyboard, buildHomeKeyboard, buildPreferenceText, DAYS, FOODS } from "../utils/index.js";
-import { getUser, saveDays, savefoodPriority } from "../db/index.js";
-
+import { backKeyboard, buildAccountKeyboard, buildDaysKeyboard, buildDaysText, buildFoodKeyboard, buildHomeKeyboard, buildPreferenceText, DAYS, FOODS } from "../utils/index.js";
+import { getUser, logoutUser, saveDays, savefoodPriority, saveSession } from "../db/index.js";
+import { fetchUserProfile, loginUser } from "../api/services.js";
 
 export default async function handleCallback(bot, query, pool, userState) {
   const fromId = query.from.id;
@@ -36,6 +36,8 @@ export default async function handleCallback(bot, query, pool, userState) {
     /* ================= FOOD SECTION ================= */
     case data === "MENU_PREFERENCE": {
       let state = userState.get(fromId);
+      console.log(state);
+
       if (!state) {
         const user = await getUser(fromId, pool);
         state = {
@@ -63,7 +65,7 @@ export default async function handleCallback(bot, query, pool, userState) {
       if (exists) {
         currentState.foods = currentState.foods.filter((f) => f.id !== foodId);
       } else {
-        currentState.foods.push({ id: food.id, title: food.title });
+        currentState.foods?.push({ id: food.id, title: food.title });
       }
 
       userState.set(fromId, currentState);
@@ -108,7 +110,7 @@ export default async function handleCallback(bot, query, pool, userState) {
       if (!state) {
         const user = await getUser(fromId, pool);
         state = {
-          foods: [], 
+          foods: [],
           days: Array.isArray(user?.days) ? user.days : [],
         };
         userState.set(fromId, state);
@@ -127,14 +129,13 @@ export default async function handleCallback(bot, query, pool, userState) {
       const dayId = Number(data.split(":")[1]);
       const day = DAYS.find((d) => d.id === dayId);
 
-      const exists = currentState.days.find((d) => d.id === dayId);
+      const exists = currentState?.days?.find((d) => d.id === dayId);
 
       if (exists) {
         currentState.days = currentState.days.filter((d) => d.id !== dayId);
       } else {
-        currentState.days.push({ id: day.id, title: day.title });
+        currentState.days?.push({ id: day.id, title: day.title, english: day.english });
       }
-
       userState.set(fromId, currentState);
 
       await bot.editMessageText(buildDaysText(fromId, DAYS, userState), {
@@ -168,5 +169,100 @@ export default async function handleCallback(bot, query, pool, userState) {
         }
       );
       break;
+
+    case data === "MENU_ACCOUNT": {
+      await bot.editMessageText("⚙️ مدیریت حساب کاربری\n\nلطفاً یکی از گزینه‌های زیر را انتخاب کنید 👇", {
+        chat_id: fromId,
+        message_id: messageId,
+        reply_markup: buildAccountKeyboard(),
+      });
+      break;
+    }
+
+    case data === "ACCOUNT_EDIT_LOGIN": {
+      userState.set(fromId, {
+        step: "LOGIN_USERNAME",
+        data: {},
+        mode: "EDIT", // فقط برای تشخیص
+      });
+
+      await bot.editMessageText(
+        `✏️ ویرایش اطلاعات ورود به سامانه سماد
+
+👈 لطفاً یوزرنیم جدید را وارد کنید
+⚠️ اطلاعات قبلی جایگزین خواهند شد`,
+        {
+          chat_id: fromId,
+          message_id: messageId,
+          reply_markup: backKeyboard(),
+        }
+      );
+      break;
+    }
+
+    case data === "ACCOUNT_LOGOUT": {
+      await logoutUser(pool, fromId);
+      userState.delete(fromId);
+
+      await bot.editMessageText("✅ با موفقیت از حساب کاربری خارج شدید.\n\nبرای استفاده مجدد، دوباره وارد سامانه شوید 👇", {
+        chat_id: fromId,
+        message_id: messageId,
+        reply_markup: buildHomeKeyboard(false),
+      });
+      break;
+    }
+
+    case data === "ACCOUNT_INFO": {
+      try {
+        const getUserInfo = await getUser(fromId, pool);
+
+        let result = await fetchUserProfile(getUserInfo?.access_token);
+        if (result.error_description == "Invalid access token") {
+          const resalt2 = await loginUser(getUserInfo.username, getUserInfo.password, getUserInfo.id, pool);
+          if (resalt2?.access_token) {
+            saveSession(pool, getUserInfo.id, getUserInfo.password, getUserInfo.username, resalt2);
+          }
+          result = await fetchUserProfile(resalt2?.access_token);
+        }
+
+        if (result.error_description == "Invalid access token") {
+          await logoutUser(pool, fromId);
+          userState.delete(fromId);
+
+          return await bot.editMessageText(`شما رمز حساب خود را عوض کردید، لطفا مجدد لاگین کنید`, {
+            chat_id: fromId,
+            message_id: messageId,
+            parse_mode: "Markdown",
+            reply_markup: buildHomeKeyboard(false),
+          });
+        }
+
+        const profile = result.payload;
+        const user = profile.user;
+
+        const message = `👤 *اطلاعات کاربری سماد*
+
+▫️ نام: *${user.firstName}*
+▫️ نام خانوادگی: *${user.lastName}*
+▫️ نام کاربری: \`${user.username}\`
+
+💳 *اعتبار کیف پول:* ${Number(profile.credit).toLocaleString()} تومان`;
+
+        await bot.editMessageText(message, {
+          chat_id: fromId,
+          message_id: messageId,
+          parse_mode: "Markdown",
+          reply_markup: buildAccountKeyboard(),
+        });
+      } catch (err) {
+        console.error("[ACCOUNT_INFO ERROR]", err);
+
+        await bot.answerCallbackQuery(query.id, {
+          text: "❌ دریافت اطلاعات کاربری با خطا مواجه شد",
+          show_alert: true,
+        });
+      }
+      break;
+    }
   }
 }
