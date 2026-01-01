@@ -36,7 +36,6 @@ export default async function handleCallback(bot, query, pool, userState) {
     /* ================= FOOD SECTION ================= */
     case data === "MENU_PREFERENCE": {
       let state = userState.get(fromId);
-      console.log(state);
 
       if (!state) {
         const user = await getUser(fromId, pool);
@@ -179,11 +178,12 @@ export default async function handleCallback(bot, query, pool, userState) {
       break;
     }
 
+    /* ================= ACCOUNT SECTION ================= */
     case data === "ACCOUNT_EDIT_LOGIN": {
       userState.set(fromId, {
         step: "LOGIN_USERNAME",
         data: {},
-        mode: "EDIT", // فقط برای تشخیص
+        mode: "EDIT",
       });
 
       await bot.editMessageText(

@@ -1,18 +1,12 @@
-export function getProgramByFoodName(programs, foodName) {
-  for (const dayPrograms of programs) {
-    for (const program of dayPrograms) {
-      if (program.foodName === foodName) {
-        return program;
-      }
-    }
-  }
-  return null;
-}
+import { fetchUserProfile, loginUser } from "../api/services.js";
+import config from "../config.js";
+import { getAdminAccessToken, setAdminAccessToken } from "../db/index.js";
+
 
 export function buildHomeKeyboard(isLogined) {
   if (!isLogined)
     return {
-      inline_keyboard: [[{ text: "🔐 ورود به سامانه", callback_data: `LOGIN_SAMAD` }], [{ text: "ℹ️ راهنما", callback_data: `help` }]],
+      inline_keyboard: [[{ text: "🔐 ورود به سامانه", callback_data: `LOGIN_SAMAD` }]],
     };
 
   return {
@@ -21,11 +15,7 @@ export function buildHomeKeyboard(isLogined) {
         { text: "📋 انتخاب روز های رزرو", callback_data: `MENU_RESERVE` },
         { text: "⭐ انتخاب اولویت غذا", callback_data: `MENU_PREFERENCE` },
       ],
-      [
-        { text: "📅 وضعیت رزروهای من", callback_data: "MENU_STATUS" },
-        { text: "⚙️ حساب کاربری", callback_data: "MENU_ACCOUNT" },
-      ],
-      [{ text: "ℹ️ راهنما", callback_data: `help` }],
+      [{ text: "⚙️ حساب کاربری", callback_data: "MENU_ACCOUNT" }],
     ],
   };
 }
@@ -91,7 +81,7 @@ export function buildPreferenceText(userId, foods, userFoodState) {
     return `${index + 1}. ${food.title}`;
   });
 
-  return `✅ انتخاب فعلی شما (به ترتیب اولویت):\n\n${lines.join("\n")}\n\n👇 برای تغییر، روی دکمه‌ها بزن`;
+  return `✅ انتخاب فعلی شما (به ترتیب اولویت):\n\n${lines.join("\n")}\n\n👇 برای تغییر، روی دکمه‌ها بزنید`;
 }
 
 export function buildFoodKeyboard(userId, foods, userFoodState) {
@@ -117,11 +107,11 @@ export function buildFoodKeyboard(userId, foods, userFoodState) {
 }
 
 export const DAYS = [
-  { id: 0, title: "شنبه" },
-  { id: 1, title: "یکشنبه" },
-  { id: 2, title: "دوشنبه" },
-  { id: 3, title: "سه‌شنبه" },
-  { id: 4, title: "چهارشنبه" },
+  { id: 0, title: "شنبه", english: "Saturday" },
+  { id: 1, title: "یکشنبه", english: "Sunday" },
+  { id: 2, title: "دوشنبه", english: "Monday" },
+  { id: 3, title: "سه‌شنبه", english: "Tuesday" },
+  { id: 4, title: "چهارشنبه", english: "Wednesday" },
 ];
 
 export function buildDaysKeyboard(userId, days, userState) {
@@ -151,9 +141,54 @@ export function buildDaysText(userId, days, userState) {
   const selectedDays = Array.isArray(userState.get(userId)?.days) ? userState.get(userId).days : [];
 
   if (selectedDays.length === 0) {
-    return "📅 هنوز روزی انتخاب نکرده‌اید.\nروزهای مورد نظر خود را انتخاب کنید:";
+    return "📅 هنوز روزی انتخاب نکرده‌ اید.\nروزهای مورد نظر خود را انتخاب کنید:";
   }
 
   const list = selectedDays.map((d) => `• ${d.title}`).join("\n");
   return `📅 روزهای انتخاب‌شده:\n${list}\n\nمی‌توانید روزهای دیگر را اضافه یا حذف کنید:`;
+}
+
+export function getNextSaturday() {
+  const now = new Date();
+  const day = now.getDay();
+  const diff = (6 - day + 7) % 7 || 7;
+
+  const saturday = new Date(now);
+  saturday.setDate(now.getDate() + diff);
+  saturday.setHours(0, 0, 0, 0);
+
+  return saturday.toISOString().split("T")[0] + "+00:00:00";
+}
+
+export const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+export function buildAccountKeyboard() {
+  return {
+    inline_keyboard: [[{ text: "👤 اطلاعات کاربری", callback_data: "ACCOUNT_INFO" }], [{ text: "✏️ ویرایش اطلاعات ورود", callback_data: "ACCOUNT_EDIT_LOGIN" }], [{ text: "🚪 خروج از حساب کاربری", callback_data: "ACCOUNT_LOGOUT" }], [{ text: "🔙 بازگشت", callback_data: "BACK" }]],
+  };
+}
+
+export async function getSamadAccessToken(pool) {
+  const res = await getAdminAccessToken(pool);
+  let access_token;
+  if (!res) {
+    const resalt2 = await loginUser(config.SAMAD_USERNAME, config.SAMAD_PASSWORD);
+    if (resalt2?.access_token) {
+      await setAdminAccessToken(pool, resalt2?.access_token);
+      return resalt2?.access_token;
+    }
+  } else {
+    access_token = await getAdminAccessToken(pool);
+    let result = await fetchUserProfile(config.SAMAD_USERNAME);
+    if (result.error_description == "Invalid access token") {
+      const resalt2 = await loginUser(config.SAMAD_USERNAME, config.SAMAD_PASSWORD);
+      if (resalt2?.access_token) {
+        await setAdminAccessToken(pool, resalt2?.access_token);
+        return resalt2?.access_token;
+      }
+    } else {
+      return access_token;
+    }
+  }
+
+  return null;
 }

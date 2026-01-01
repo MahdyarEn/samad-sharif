@@ -1,4 +1,3 @@
-import { getProgramByFoodName } from "../utils/index.js";
 import api from "./axios.js";
 import qs from "qs";
 export async function loginUser(username, password) {
@@ -28,8 +27,7 @@ export async function getSelfWeekPrograms(token, weekStartDate) {
   });
 }
 
-export async function reserveFood(user, foodName, selfWeekPrograms) {
-  const program = await getProgramByFoodName(selfWeekPrograms, foodName);
+export async function reserveFood(user, program) {
   return api
     .put(
       `/rest/reserves/${program.programId}/reserve`,

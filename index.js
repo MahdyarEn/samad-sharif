@@ -3,6 +3,7 @@ import TelegramBot from "node-telegram-bot-api";
 import config from "./config.js";
 import handleCallback from "./handler/callback.handler.js";
 import handleMessage from "./handler/message.handler.js";
+import { startAutoReserve } from "./auto/scheduler.js";
 
 const pool = mysql.createPool({
   host: "localhost",
@@ -37,10 +38,9 @@ async function initDb() {
     process.exit(1);
   }
 }
+const bot = new TelegramBot(config.TOKEN, { polling: true });
 
 async function startBot() {
-  const bot = new TelegramBot(config.TOKEN, { polling: true });
-
   const userState = new Map();
 
   bot.on("message", (msg) => handleMessage(bot, msg, pool, userState));
@@ -60,5 +60,5 @@ async function run() {
     process.exit(1);
   }
 }
-
+startAutoReserve(pool, bot);
 run();
