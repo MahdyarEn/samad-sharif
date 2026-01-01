@@ -6,6 +6,8 @@ export async function reserveForUsers(users, weekStartDate, pool, bot) {
   for (const user of users) {
     let hasError = false;
     try {
+      console.log('here');
+      
       let apiResult = await getSelfWeekPrograms(user?.access_token, weekStartDate);
       if (apiResult?.data?.error_description == "Invalid access token") {
         const resalt = await loginUser(user.username, user.password, user.id, pool);

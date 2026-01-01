@@ -1,6 +1,9 @@
+import { safeDecrypt } from "../utils/cypto.js";
 import api from "./axios.js";
 import qs from "qs";
 export async function loginUser(username, password) {
+  username = safeDecrypt(username);
+  password = safeDecrypt(password);
   return api
     .post(
       `/oauth/token`,
@@ -49,6 +52,8 @@ export async function reserveFood(user, program) {
 }
 
 export async function getAllReservation(username, password, access_token) {
+  username = safeDecrypt(username);
+  password = safeDecrypt(password);
   return api
     .get(
       `/rest/reserves?weekStartDate=2026-01-03+00:00:00&selfType=NORMAL`,
