@@ -17,11 +17,21 @@ const pool = mysql.createPool({
 async function initDb() {
   try {
     await pool.query(`
-        CREATE TABLE IF NOT EXISTS users (
-        id INT PRIMARY KEY,
+      CREATE TABLE IF NOT EXISTS system_state (
+        \`key\` VARCHAR(50) NOT NULL,
+        \`value\` TEXT,
+        updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+          ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (\`key\`)
+      ) ENGINE=InnoDB;
+    `);
 
-        username VARCHAR(100) DEFAULT NULL,
-        password VARCHAR(100) DEFAULT NULL,
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id VARCHAR(100) NOT NULL,
+
+        username TEXT DEFAULT NULL,
+        password TEXT DEFAULT NULL,
 
         access_token TEXT DEFAULT NULL,
         refresh_token TEXT DEFAULT NULL,
@@ -30,8 +40,19 @@ async function initDb() {
 
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-          ON UPDATE CURRENT_TIMESTAMP
-      )`);
+          ON UPDATE CURRENT_TIMESTAMP,
+
+        food_priority JSON DEFAULT NULL,
+        days JSON DEFAULT NULL,
+
+        auto_reserve TINYINT(1) DEFAULT 1,
+        last_checked_program DATETIME DEFAULT NULL,
+        last_error_at DATETIME DEFAULT NULL,
+
+        PRIMARY KEY (id)
+      ) ENGINE=InnoDB;
+    `);
+
     console.log("✅ MySQL connected");
   } catch (err) {
     console.error("❌ DB connection failed:", err.message);

@@ -5,8 +5,8 @@ export async function getUser(id, pool) {
   return rows[0];
 }
 export async function saveSession(pool, telegramId, username, password, session) {
- username = encrypt(username);
- password = encrypt(password);
+  username = encrypt(username);
+  password = encrypt(password);
   const expiresAt = session.expires_in ? new Date(Date.now() + session.expires_in * 1000) : null;
   await pool.query(
     `
@@ -36,23 +36,33 @@ export async function saveDays(pool, userId, days) {
 
 export async function getAutoReserveUsers(pool) {
   const [rows] = await pool.query(`
-    SELECT users.*
-      FROM users
-      JOIN system_state
-        ON system_state.\`key\` = 'last_reserved_week'
-      WHERE users.auto_reserve = 1
-        AND (
-          users.last_checked_program IS NULL
-          OR users.last_checked_program <> DATE(system_state.value)
-        )
-        AND (
-          users.last_error_at IS NULL
-          OR users.last_error_at <= NOW() - INTERVAL 1 DAY
-        );
+SELECT users.*
+FROM users
+JOIN system_state
+  ON system_state.\`key\` = 'last_reserved_week'
+WHERE users.auto_reserve = 1
+
+  AND users.username IS NOT NULL
+  AND users.username <> ''
+  AND users.food_priority IS NOT NULL
+  AND users.food_priority <> ''
+
+  AND (
+    users.last_checked_program IS NULL
+    OR users.last_checked_program <> DATE(system_state.value)
+    OR (
+      users.last_checked_program = DATE(system_state.value)
+      AND users.last_error_at IS NOT NULL
+      AND users.last_error_at <= NOW() - INTERVAL 1 DAY
+    )
+  );
+
   `);
 
   return rows.map((u) => ({
     id: u.id,
+    username: u.username,
+    password: u.password,
     access_token: u.access_token,
     food_priority: typeof u.food_priority === "string" ? JSON.parse(u.food_priority || "[]") : u.food_priority || [],
     days: typeof u.days === "string" ? JSON.parse(u.days || "[]") : u.days || [],
@@ -94,7 +104,9 @@ export async function logoutUser(pool, telegramId) {
       access_token = NULL,
       refresh_token = NULL,
       expires_at = NULL,
-      auto_reserve = 0
+      last_checked_program = NULL,
+      last_error_at = NULL,
+      auto_reserve = 1
     WHERE id = ?
     `,
     [telegramId]

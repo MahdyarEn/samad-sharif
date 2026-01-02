@@ -7,7 +7,7 @@ import { getSamadAccessToken } from "../utils/index.js";
 let running = false;
 
 export function startAutoReserve(pool, bot) {
-  cron.schedule("*/15 * * * * *", async () => {
+  cron.schedule("*/10 * * * *", async () => {
     console.log("[CRON] tick", new Date().toISOString());
     if (running) {
       console.log("[CRON] already running, skip");
@@ -26,7 +26,7 @@ export function startAutoReserve(pool, bot) {
       const users = await getAutoReserveUsers(pool);
       console.log("[CRON] auto users:", users.length);
       await reserveForUsers(users, result.weekStartDate, pool, bot);
-      await setLastReservedWeek(pool, result.weekStartDate);
+      if (result.isNewWeek) await setLastReservedWeek(pool, result.weekStartDate);
       console.log("[CRON] reservation done ✅");
     } catch (e) {
       console.error("[CRON] error:", e);

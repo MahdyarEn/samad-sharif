@@ -1,13 +1,12 @@
 import { getSelfWeekPrograms, loginUser, reserveFood } from "../api/services.js";
 import { clearReserveError, logoutUser, markReserveError, saveSession, setUserLastCheckedProgram } from "../db/index.js";
-import { buildHomeKeyboard, sleep } from "../utils/index.js";
+import { buildHomeKeyboard, normalizeDays, sleep } from "../utils/index.js";
 
 export async function reserveForUsers(users, weekStartDate, pool, bot) {
   for (const user of users) {
+    if (!user?.username) continue;
     let hasError = false;
     try {
-      console.log('here');
-      
       let apiResult = await getSelfWeekPrograms(user?.access_token, weekStartDate);
       if (apiResult?.data?.error_description == "Invalid access token") {
         const resalt = await loginUser(user.username, user.password, user.id, pool);
@@ -28,10 +27,12 @@ export async function reserveForUsers(users, weekStartDate, pool, bot) {
       const allPrograms = apiResult.data.payload.selfWeekPrograms.flat();
       console.log(`AutoReserve user ${user.id}`);
 
-      for (const day of user.days) {
+      const uDays = normalizeDays(user?.days);
+      for (const day of uDays) {
         const dayPrograms = allPrograms.filter((p) => p.dayTranslated === day.english);
+        const uFoods = normalizeDays(user?.food_priority);
 
-        for (const food of user.food_priority) {
+        for (const food of uFoods) {
           let program = dayPrograms.find((p) => p.foodName === food.title);
 
           if (!program) program = dayPrograms[0];
@@ -40,11 +41,19 @@ export async function reserveForUsers(users, weekStartDate, pool, bot) {
           let res = await reserveFood(user, program, apiResult.data.payload.selfWeekPrograms);
 
           await setUserLastCheckedProgram(user.id, weekStartDate, pool);
+          console.log(res);
 
           if (res?.messageFa && res?.type == "ERROR") {
             if (res?.messageFa != "با توجه به قواعد و محدودیتها، هیچ موردی برای تغییر وجود ندارد.") {
-              bot.sendMessage(user.id, `⭕️ رزرو غذا در سماد با خطا مواجد شد\nمتن خطا:‌ <blockquote>${res.messageFa}</blockquote>`, { parse_mode: "HTML" });
-              hasError = true;
+              if (res?.messageFa == "شما 2 مورد انتخاب کرده اید در حالیکه حداکثر باید 1 مورد انتخاب کنید.") {
+                bot.sendMessage(user.id, `⭕️ رزرو غذا برای روز <b>${day.title}</b> در سماد با خطا مواجد شد\nمتن خطا:‌ <blockquote>رزرو غذای این روز از هفته قبلا انجام شده است</blockquote>`, { parse_mode: "HTML" });
+              } else {
+                bot.sendMessage(user.id, `⭕️ رزرو غذا برای روز <b>${day.title}</b> در سماد با خطا مواجد شد\nمتن خطا:‌ <blockquote>${res.messageFa}</blockquote>`, { parse_mode: "HTML" });
+              }
+              if (res?.messageFa != "شما 2 مورد انتخاب کرده اید در حالیکه حداکثر باید 1 مورد انتخاب کنید.") {
+                hasError = true;
+              }
+              break;
             }
           } else {
             console.log(`[RESERVE] user=${user.id} day=${day.title} food=${program.title}`);

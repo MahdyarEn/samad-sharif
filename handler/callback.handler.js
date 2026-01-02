@@ -1,9 +1,16 @@
-import { backKeyboard, buildAccountKeyboard, buildDaysKeyboard, buildDaysText, buildFoodKeyboard, buildHomeKeyboard, buildPreferenceText, DAYS, FOODS } from "../utils/index.js";
+import { ALLOWED_USERS, backKeyboard, buildAccountKeyboard, buildDaysKeyboard, buildDaysText, buildFoodKeyboard, buildHomeKeyboard, buildPreferenceText, DAYS, FOODS, normalizeDays } from "../utils/index.js";
 import { getUser, logoutUser, saveDays, savefoodPriority, saveSession } from "../db/index.js";
 import { fetchUserProfile, loginUser } from "../api/services.js";
 
 export default async function handleCallback(bot, query, pool, userState) {
   const fromId = query.from.id;
+  if (!ALLOWED_USERS.has(fromId)) {
+    return bot.sendMessage(
+      fromId,
+      `⛔️ شما دسترسی استفاده از این ربات را ندارید
+  این ربات تنها برای دانشجویان ورودی 1404 دانشکده کامپیوتر قابل استفاده می‌باشد.`
+    );
+  }
   const messageId = query.message.message_id;
   const data = query.data;
 
@@ -40,17 +47,30 @@ export default async function handleCallback(bot, query, pool, userState) {
       if (!state) {
         const user = await getUser(fromId, pool);
         state = {
-          foods: Array.isArray(user?.food_priority) ? user.food_priority : [],
+          foods: normalizeDays(user?.food_priority),
           days: [],
         };
         userState.set(fromId, state);
       }
 
-      await bot.editMessageText(buildPreferenceText(fromId, FOODS, userState), {
+      const msg_res = await bot.editMessageText(buildPreferenceText(fromId, FOODS, userState), {
         reply_markup: buildFoodKeyboard(fromId, FOODS, userState),
         message_id: messageId,
         chat_id: fromId,
       });
+      await bot.sendMessage(
+        fromId,
+        `👈 لطفا غذاهای موردعلاقه خود را به ترتیب اولویت انتخاب کنید.
+
+ربات در زمان رزرو از این اولویت‌ ها استفاده می‌کند.
+
+ نیازی به انتخاب همه ۵۶ مورد نیست؛ انتخاب چند گزینه اصلی کافی است.
+
+اگر در یک روز خاص هیچ‌کدام از اولویت‌های شما موجود نباشد، در صورت فعال بودن رزرو آن روز، ربات به‌صورت خودکار یک غذا را انتخاب می‌کند.`,
+        {
+          reply_to_message_id: msg_res.message_id,
+        }
+      );
 
       break;
     }
@@ -89,16 +109,14 @@ export default async function handleCallback(bot, query, pool, userState) {
 
       await savefoodPriority(pool, fromId, currentState.foods);
       userState.delete(fromId);
-
-      await bot.editMessageText(
+      bot.deleteMessage(fromId, messageId);
+      bot.deleteMessage(fromId, messageId + 1);
+      await bot.sendMessage(
+        fromId,
         `✅ ترجیحات غذایی شما ذخیره شد.
 
 مرحله بعد را انتخاب کنید 👇`,
-        {
-          chat_id: fromId,
-          message_id: messageId,
-          reply_markup: buildHomeKeyboard(true),
-        }
+        { reply_markup: buildHomeKeyboard(true) }
       );
       break;
 
@@ -110,7 +128,7 @@ export default async function handleCallback(bot, query, pool, userState) {
         const user = await getUser(fromId, pool);
         state = {
           foods: [],
-          days: Array.isArray(user?.days) ? user.days : [],
+          days: normalizeDays(user?.days),
         };
         userState.set(fromId, state);
       }
@@ -170,7 +188,7 @@ export default async function handleCallback(bot, query, pool, userState) {
       break;
 
     case data === "MENU_ACCOUNT": {
-      await bot.editMessageText("⚙️ مدیریت حساب کاربری\n\nلطفاً یکی از گزینه‌های زیر را انتخاب کنید 👇", {
+      await bot.editMessageText("⚙️ مدیریت حساب کاربری\n\nلطفا یکی از گزینه‌های زیر را انتخاب کنید 👇", {
         chat_id: fromId,
         message_id: messageId,
         reply_markup: buildAccountKeyboard(),
@@ -189,7 +207,7 @@ export default async function handleCallback(bot, query, pool, userState) {
       await bot.editMessageText(
         `✏️ ویرایش اطلاعات ورود به سامانه سماد
 
-👈 لطفاً یوزرنیم جدید را وارد کنید
+👈 لطفا یوزرنیم جدید را وارد کنید
 ⚠️ اطلاعات قبلی جایگزین خواهند شد`,
         {
           chat_id: fromId,
@@ -246,7 +264,7 @@ export default async function handleCallback(bot, query, pool, userState) {
 ▫️ نام خانوادگی: *${user.lastName}*
 ▫️ نام کاربری: \`${user.username}\`
 
-💳 *اعتبار کیف پول:* ${Number(profile.credit).toLocaleString()} تومان`;
+💳 *اعتبار کیف پول:* ${Number(profile.credit/10).toLocaleString()} تومان`;
 
         await bot.editMessageText(message, {
           chat_id: fromId,
@@ -264,5 +282,36 @@ export default async function handleCallback(bot, query, pool, userState) {
       }
       break;
     }
+    /* ================= HELP SECTION ================= */
+    case data === "HELP":
+      {
+        const helpText = `
+<b>🤖 این ربات چطور کار می‌کنه؟</b>
+این ربات به‌صورت خودکار سامانه <b>سماد</b> رو بررسی می‌کنه و به محض باز شدن غذا، برای همه کاربران بر اساس تنظیمات و سلیقه‌شون غذا رو رزرو می‌کنه.
+
+<b>⚠️ توجه:</b>
+حساب شما در سماد باید شارژ شده و موجودی کافی داشته باشه.
+
+<b>🍽 این ربات به چه دردی می‌خوره؟</b>
+با این ربات می‌تونید غذای سلف رو به‌صورت خودکار
+و دقیقا طبق علاقه‌تون رزرو کنید.
+
+<b>⚡️ مزیت نسبت به رزرو دستی چیه؟</b>
+• غذاهای کاله ظرفیت محدود دارن و خیلی زود پر می‌شن ربات، در لحظه باز شدن رزرو می‌کنه
+• اگه یک روز فراموش کنید غذا رزرو کنید ربات خودکار براتون انجامش می‌ده
+
+<b>🔐 اطلاعات من در خطر نیست؟</b>
+این پروژه Open Source هست و کامل روی <b>GitHub</b> منتشر شده.
+تمام اطلاعات حساس شما به‌صورت رمزگذاری‌شده در دیتابیس ذخیره می‌شن
+و هر زمان خواستید می‌تونید سورس کد رو بررسی کنید.
+`;
+        await bot.editMessageText(helpText, {
+          chat_id: fromId,
+          message_id: messageId,
+          reply_markup: backKeyboard(),
+          parse_mode: "HTML",
+        });
+      }
+      break;
   }
 }

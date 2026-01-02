@@ -1,11 +1,18 @@
 import { loginUser } from "../api/services.js";
 import { getUser, saveSession } from "../db/index.js";
-import { backKeyboard, buildHomeKeyboard } from "../utils/index.js";
+import { ALLOWED_USERS, backKeyboard, buildHomeKeyboard } from "../utils/index.js";
 
 export default async function handleMessage(bot, msg, pool, userState) {
   try {
     if (msg.chat.type !== "private") return;
     const fromId = msg.from.id;
+    if (!ALLOWED_USERS.has(fromId)) {
+      return bot.sendMessage(
+        fromId,
+        `⛔️ شما دسترسی استفاده از این ربات را ندارید
+این ربات تنها برای دانشجویان ورودی 1404 دانشکده کامپیوتر قابل استفاده می‌باشد.`
+      );
+    }
     const text = msg.text?.trim();
     let user = await getUser(fromId, pool);
     if (!user) {
