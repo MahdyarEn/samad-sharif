@@ -6,4 +6,6 @@ export default {
   DB_NAME: process.env.DB_NAME,
   SAMAD_USERNAME: process.env.SAMAD_USERNAME,
   SAMAD_PASSWORD: process.env.SAMAD_PASSWORD,
+  WEB_PORT: process.env.PORT,
+  DOMAIN: process.env.DOMAIN,
 };

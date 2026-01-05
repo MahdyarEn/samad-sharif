@@ -49,7 +49,7 @@ export default async function handleMessage(bot, msg, pool, userState) {
     }
 
     switch (true) {
-      case /^\/start(?:@\w+)?$/i.test(text):
+      case /^\/start(?:@\w+)?$/i.test(text):         
         bot.sendMessage(
           fromId,
           `سلام

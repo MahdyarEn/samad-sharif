@@ -99,7 +99,7 @@ export default async function handleCallback(bot, query, pool, userState) {
       break;
     }
 
-    case data === "FOOD_CONFIRM":
+    case data === "FOOD_CONFIRM": {
       if (currentState.foods.length === 0) {
         return bot.answerCallbackQuery(query.id, {
           text: "حداقل یک غذا انتخاب کنید ❗",
@@ -119,6 +119,7 @@ export default async function handleCallback(bot, query, pool, userState) {
         { reply_markup: buildHomeKeyboard(true) }
       );
       break;
+    }
 
     /* ================= DAYS SECTION ================= */
 
@@ -165,7 +166,7 @@ export default async function handleCallback(bot, query, pool, userState) {
       break;
     }
 
-    case data == "DAYS_CONFIRM":
+    case data == "DAYS_CONFIRM": {
       if (currentState.days.length === 0) {
         return bot.answerCallbackQuery(query.id, {
           text: "حداقل یک روز انتخاب کن ❗",
@@ -186,7 +187,7 @@ export default async function handleCallback(bot, query, pool, userState) {
         }
       );
       break;
-
+    }
     case data === "MENU_ACCOUNT": {
       await bot.editMessageText("⚙️ مدیریت حساب کاربری\n\nلطفا یکی از گزینه‌های زیر را انتخاب کنید 👇", {
         chat_id: fromId,
@@ -264,7 +265,7 @@ export default async function handleCallback(bot, query, pool, userState) {
 ▫️ نام خانوادگی: *${user.lastName}*
 ▫️ نام کاربری: \`${user.username}\`
 
-💳 *اعتبار کیف پول:* ${Number(profile.credit/10).toLocaleString()} تومان`;
+💳 *اعتبار کیف پول:* ${Number(profile.credit / 10).toLocaleString()} تومان`;
 
         await bot.editMessageText(message, {
           chat_id: fromId,

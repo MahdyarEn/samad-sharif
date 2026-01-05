@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="fa">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Samad WebAPP</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100..900&display=swap");
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+  </head>
+  <style type="text/tailwindcss">
+    @theme {
+      --color-tg-bg: var(--tg-theme-bg-color, #ffffff);
+      --color-tg-text: var(--tg-theme-text-color, #000000);
+      --color-tg-hint: var(--tg-theme-hint-color, #999999);
+      --color-tg-link: var(--tg-theme-link-color, #168acd);
+      --color-tg-button: var(--tg-theme-button-color, #40a7e3);
+      --color-tg-button-text: var(--tg-theme-button-text-color, #ffffff);
+      --color-tg-secondary: var(--tg-theme-secondary-bg-color, #f1f1f1);
+      --color-tg-header: var(--tg-theme-header-bg-color, #ffffff);
+      --color-tg-transparent: rgba(51, 144, 236, 0.1);
+      --color-tg-accent: var(--tg-theme-accent-text-color, #168acd);
+      --color-tg-bottom-bar: var(--tg-theme-bottom-bar-bg-color, #ffffff);
+      --color-tg-destructive: var(--tg-theme-destructive-text-color, #d14e4e);
+      --color-tg-section: var(--tg-theme-section-bg-color, #ffffff);
+      --color-tg-section-header: var(--tg-theme-section-header-text-color, #168acd);
+      --color-tg-separator: var(--tg-theme-section-separator-color, #e7e7e7);
+      --color-tg-subtitle: var(--tg-theme-subtitle-text-color, #999999);
+      --font-sans: "Vazirmatn", sans-serif;
+    }
+    body {
+      background-color: var(--color-tg-secondary);
+      color: var(--color-tg-text);
+      font-family: var(--font-sans);
+    }
+    .active {
+      @apply bg-tg-transparent transition-all border border-tg-button;
+    }
+  </style>
+  <body dir="rtl" class="flex flex-col items-center pb-10">
+    <div class="container mt-8 max-w-3xl">
+      <h1 class="text-center text-2xl mb-8 font-bold">تنظیمات رزرو خودکار</h1>
+
+      <!-- days -->
+      <section class="bg-tg-section p-4 shadow-sm rounded-xl m-3" id="days-section">
+        <h2 class="text-lg">📅 روزهای رزرو</h2>
+        <hr class="text-tg-secondary mt-2 mb-3" />
+        <div class="grid grid-cols-2 gap-2.5" id="days-box"></div>
+      </section>
+
+      <!-- foods -->
+      <section class="bg-tg-section p-4 rounded-xl shadow-sm mb-4 m-3" id="food-section">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="font-bold text-tg-text">⭐️ اولویت‌بندی رزرو غذاها</h3>
+          <button onclick="openFoodModal()" class="text-sm bg-tg-transparent text-tg-button px-3 py-1.5 rounded-lg font-medium active:opacity-70 transition">+ افزودن</button>
+        </div>
+
+        <p class="text-xs text-tg-subtitle mb-3">غذاها را با کشیدن (Drag) جابجا کنید تا اولویت آن‌ها مشخص شود.</p>
+        <ul id="preference-list" class="space-y-2"></ul>
+      </section>
+
+      <div id="food-modal" class="fixed inset-0 z-50 hidden bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4">
+        <div class="bg-tg-section w-full max-w-sm rounded-2xl p-4 max-h-[80vh] flex flex-col shadow-2xl">
+          <div class="flex justify-between items-center mb-4">
+            <h4 class="font-bold text-tg-text">انتخاب غذا</h4>
+            <button onclick="closeFoodModal()" class="text-tg-hint p-2 hover:text-tg-destructive transition">✕</button>
+          </div>
+          <input type="text" id="food-search" placeholder="جستجوی غذا..." class="w-full p-2.5 border border-tg-separator rounded-xl mb-2 bg-tg-secondary text-tg-text placeholder:text-tg-hint outline-none focus:border-tg-button transition dir-rtl text-right" />
+          <div id="all-foods-container" class="overflow-y-auto flex-1 space-y-1 pr-1 hide-scrollbar"></div>
+        </div>
+      </div>
+
+      <!-- Error -->
+      <div id="error" class="fixed hidden inset-0 z-100 bg-tg-bg flex items-center justify-center p-6 text-center transition-opacity duration-300">
+        <div class="bg-tg-secondary p-6 rounded-2xl shadow-lg w-full max-w-xs flex flex-col items-center gap-4">
+          <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-2">
+            <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+          </div>
+          <h3 class="text-tg-text text-lg font-bold">دسترسی غیرمجاز</h3>
+          <p class="text-tg-hint text-sm leading-6" id="err-msg"></p>
+          <a href="https://t.me/samadSharifBot" class="mt-2 w-full bg-tg-button text-tg-button-text py-2.5 rounded-lg font-medium text-sm hover:opacity-90 transition"> بازگشت به ربات </a>
+        </div>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>

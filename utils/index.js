@@ -1,7 +1,7 @@
 import { fetchUserProfile, loginUser } from "../api/services.js";
 import config from "../config.js";
 import { getAdminAccessToken, setAdminAccessToken } from "../db/index.js";
-
+import crypto from "crypto";
 export function buildHomeKeyboard(isLogined) {
   if (!isLogined)
     return {
@@ -15,6 +15,12 @@ export function buildHomeKeyboard(isLogined) {
         { text: "⭐ انتخاب اولویت غذا", callback_data: `MENU_PREFERENCE` },
       ],
       [{ text: "⚙️ حساب کاربری", callback_data: "MENU_ACCOUNT" }],
+      [
+        {
+          text: "🛠 ورود به وب‌اپلیکیشن",
+          web_app: { url: config.DOMAIN },
+        },
+      ],
       [{ text: "ℹ️ راهنما", callback_data: `HELP` }],
     ],
   };
@@ -241,3 +247,23 @@ export const ALLOWED_USERS = new Set([
   72986574, 8305778555, 404623651, 274989966, 5220686671, 6964074021, 1069129572, 379075872, 1283173649, 851269421, 1585743540, 6215875760, 1856962525, 311474197, 1489335100, 1149150675, 1035537594, 1099766840, 5883998073, 887889261, 2020081564, 7959160092, 1497579437,
   1932202740, 1235496823, 343748856, 661659142, 1880349583, 5272970943, 2041637341, 5766849973, 1184861381, 5292504324, 5489299851, 903556263, 8225978255, 5829291278, 8128307442, 5358679218, 1118244666, 1145266637,
 ]);
+
+export function verifyTelegramWebAppData(telegramInitData) {
+  if (!telegramInitData) return null;
+  const urlParams = new URLSearchParams(telegramInitData);
+  const hash = urlParams.get("hash");
+  urlParams.delete("hash");
+  const params = Array.from(urlParams.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([key, val]) => `${key}=${val}`)
+    .join("\n");
+  const secretKey = crypto.createHmac("sha256", "WebAppData").update(config.TOKEN).digest();
+  const calculatedHash = crypto.createHmac("sha256", secretKey).update(params).digest("hex");
+  if (calculatedHash === hash) {
+    const userDataStr = urlParams.get("user");
+    if (userDataStr) {
+      return JSON.parse(userDataStr);
+    }
+  }
+  return null;
+}

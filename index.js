@@ -4,6 +4,10 @@ import config from "./config.js";
 import handleCallback from "./handler/callback.handler.js";
 import handleMessage from "./handler/message.handler.js";
 import { startAutoReserve } from "./auto/scheduler.js";
+import { normalizeDays, verifyTelegramWebAppData } from "./utils/index.js";
+import { saveDays, savefoodPriority } from "./db/index.js";
+import express from "express";
+import cors from "cors";
 
 const pool = mysql.createPool({
   host: "localhost",
@@ -60,6 +64,58 @@ async function initDb() {
   }
 }
 const bot = new TelegramBot(config.TOKEN, { polling: true });
+
+// ==========================================
+const app = express();
+const PORT = config.WEB_PORT || 3000;
+app.use(express.static("public"));
+app.use(cors());
+app.use(express.json());
+
+app.listen(PORT, () => {
+  console.log(`✅ WebApp Server running on port ${PORT}`);
+  console.log(`✅ WebApp URL: ${config.DOMAIN}`);
+});
+
+app.post("/api/get-data", async (req, res) => {
+  try {
+    const initData = req.body?.initData;
+
+    const validate = verifyTelegramWebAppData(initData);
+
+    if (!validate) {
+      return res.status(403).json({ error: "اطلاعات شما معتبر نیست، لطفا مستقیما از ربات وب‌اپ را باز کنید" });
+    }
+    const userID = validate.id;
+
+    const [[rows]] = await pool.query("SELECT days,food_priority,username FROM users WHERE id = ?", [userID]);
+    res.json({ days: normalizeDays(rows?.days), food_priority: normalizeDays(rows?.food_priority), user: !!rows, isLogin: !!rows?.username });
+  } catch (error) {
+    res.json({ error: "خطایی پیش آمد" });
+  }
+});
+app.post("/api/save-data", async (req, res) => {
+  try {
+    const initData = req.body?.initData;
+
+    const validate = verifyTelegramWebAppData(initData);
+
+    if (!validate) {
+      return res.status(403).json({ error: "اطلاعات شما معتبر نیست، لطفا مستقیما از ربات وب‌اپ را باز کنید" });
+    }
+    const userID = validate.id;
+    const [[rows]] = await pool.query("SELECT days,food_priority FROM users WHERE id = ?", [userID]);
+    const { foods, days } = req?.body;
+    await savefoodPriority(pool, userID, foods);
+    await saveDays(pool, userID, days);
+    bot.sendMessage(userID, `اطلاعات شما با موفقیت ذخیره شد\n/start`);
+    res.json({ days: normalizeDays(rows?.days), food_priority: normalizeDays(rows?.food_priority), user: !!rows });
+  } catch (error) {
+    res.json({ error: "خطایی هنگام ذخیره اطلاعات شما پیش آمد" });
+  }
+});
+
+// ==========================================
 
 async function startBot() {
   const userState = new Map();
