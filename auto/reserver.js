@@ -23,53 +23,51 @@ export async function reserveForUsers(users, weekStartDate, pool, bot) {
       if (!apiResult?.data?.payload?.selfWeekPrograms || !Array.isArray(apiResult.data.payload.selfWeekPrograms)) {
         continue;
       }
-
       const allPrograms = apiResult.data.payload.selfWeekPrograms.flat();
       console.log(`AutoReserve user ${user.id}`);
 
       const uDays = normalizeDays(user?.days);
       for (const day of uDays) {
         const dayPrograms = allPrograms.filter((p) => p.dayTranslated === day.english);
+        if (dayPrograms.length == 0) continue;
         const uFoods = normalizeDays(user?.food_priority);
-
+        let program = null;
         for (const food of uFoods) {
-          let program = dayPrograms.find((p) => p.foodName === food.title);
+          program = dayPrograms.find((p) => p?.foodName === food?.title);
+          if (program) break;
+        }
+        if (!program) program = dayPrograms[0];
 
-          if (!program) program = dayPrograms[0];
-          if (!program) continue;
+        let res = await reserveFood(user, program, apiResult.data.payload.selfWeekPrograms);
 
-          let res = await reserveFood(user, program, apiResult.data.payload.selfWeekPrograms);
+        await setUserLastCheckedProgram(user.id, weekStartDate, pool);
+        console.log(res);
 
-          await setUserLastCheckedProgram(user.id, weekStartDate, pool);
-          console.log(res);
-
-          if (res?.messageFa && res?.type == "ERROR") {
-            if (res?.messageFa != "با توجه به قواعد و محدودیتها، هیچ موردی برای تغییر وجود ندارد.") {
-              if (res?.messageFa == "شما 2 مورد انتخاب کرده اید در حالیکه حداکثر باید 1 مورد انتخاب کنید.") {
-                bot.sendMessage(user.id, `⭕️ رزرو غذا برای روز <b>${day.title}</b> در سماد با خطا مواجد شد\nمتن خطا:‌ <blockquote>رزرو غذای این روز از هفته قبلا انجام شده است</blockquote>`, { parse_mode: "HTML" });
-              } else {
-                bot.sendMessage(user.id, `⭕️ رزرو غذا برای روز <b>${day.title}</b> در سماد با خطا مواجد شد\nمتن خطا:‌ <blockquote>${res.messageFa}</blockquote>`, { parse_mode: "HTML" });
-              }
-              if (res?.messageFa != "شما 2 مورد انتخاب کرده اید در حالیکه حداکثر باید 1 مورد انتخاب کنید.") {
-                hasError = true;
-              }
-              break;
+        if (res?.messageFa && res?.type == "ERROR") {
+          if (res?.messageFa != "با توجه به قواعد و محدودیتها، هیچ موردی برای تغییر وجود ندارد.") {
+            if (res?.messageFa == "شما 2 مورد انتخاب کرده اید در حالیکه حداکثر باید 1 مورد انتخاب کنید.") {
+              bot.sendMessage(user.id, `⭕️ رزرو غذا برای روز <b>${day.title}</b> در سماد با خطا مواجد شد\nمتن خطا:‌ <blockquote>رزرو غذای این روز از هفته قبلا انجام شده است</blockquote>`, { parse_mode: "HTML" });
+            } else {
+              bot.sendMessage(user.id, `⭕️ رزرو غذا برای روز <b>${day.title}</b> در سماد با خطا مواجد شد\nمتن خطا:‌ <blockquote>${res.messageFa}</blockquote>`, { parse_mode: "HTML" });
             }
-          } else {
-            console.log(`[RESERVE] user=${user.id} day=${day.title} food=${program.title}`);
-            bot.sendMessage(
-              user.id,
-              `✅ غذای روز ${day.title} با موفقیت رزرو شد.
+            if (res?.messageFa != "شما 2 مورد انتخاب کرده اید در حالیکه حداکثر باید 1 مورد انتخاب کنید.") {
+              hasError = true;
+            }
+            break;
+          }
+        } else {
+          console.log(`[RESERVE] user=${user.id} day=${day.title} food=${program.foodName}`);
+          bot.sendMessage(
+            user.id,
+            `✅ غذای روز ${day.title} با موفقیت رزرو شد.
 
 نام غذا: ${program.foodName}
 هزینه غذا: ${Number(program.price / 10).toLocaleString()}`,
-              { parse_mode: "HTML" }
-            );
-            break;
-          }
-
-          await sleep(300);
+            { parse_mode: "HTML" }
+          );
         }
+
+        await sleep(150);
       }
     } catch (e) {
       hasError = true;

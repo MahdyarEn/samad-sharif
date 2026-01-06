@@ -89,7 +89,7 @@ const ALL_FOODS = [
 // =======================================
 const getUserData = async () => {
   try {
-    const response = await fetch("https://lorenzo-superdemocratic-dorie.ngrok-free.dev/api/get-data", {
+    const response = await fetch("https://samad-sharif.ir/api/get-data", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -273,6 +273,10 @@ function setError(err) {
   document.querySelector("#food-section").remove();
   document.querySelector("#days-section").remove();
   document.querySelector("#food-modal").remove();
+}
+
+function closeWebApp() {
+  return telegram.close();
 }
 
 async function initApp() {
