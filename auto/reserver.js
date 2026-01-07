@@ -59,10 +59,10 @@ export async function reserveForUsers(users, weekStartDate, pool, bot) {
           console.log(`[RESERVE] user=${user.id} day=${day.title} food=${program.foodName}`);
           bot.sendMessage(
             user.id,
-            `✅ غذای روز ${day.title} با موفقیت رزرو شد.
+            `✅ غذای روز <b>${day.title}</b> با موفقیت رزرو شد.
 
 نام غذا: ${program.foodName}
-هزینه غذا: ${Number(program.price / 10).toLocaleString()}`,
+هزینه غذا: ${Number(program.price / 10).toLocaleString()} تومان`,
             { parse_mode: "HTML" }
           );
         }
