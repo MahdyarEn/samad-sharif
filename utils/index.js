@@ -221,7 +221,7 @@ export async function getSamadAccessToken(pool) {
 
   return null;
 }
-export function normalizeDays(value) {
+export function normalizeArray(value) {
   if (!value) return [];
 
   if (Array.isArray(value)) return value;

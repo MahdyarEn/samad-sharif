@@ -4,7 +4,7 @@ import config from "./config.js";
 import handleCallback from "./handler/callback.handler.js";
 import handleMessage from "./handler/message.handler.js";
 import { startAutoReserve } from "./auto/scheduler.js";
-import { normalizeDays, verifyTelegramWebAppData } from "./utils/index.js";
+import { normalizeArray, verifyTelegramWebAppData } from "./utils/index.js";
 import { saveDays, savefoodPriority } from "./db/index.js";
 import express from "express";
 import cors from "cors";
@@ -89,7 +89,7 @@ app.post("/api/get-data", async (req, res) => {
     const userID = validate.id;
 
     const [[rows]] = await pool.query("SELECT days,food_priority,username FROM users WHERE id = ?", [userID]);
-    res.json({ days: normalizeDays(rows?.days), food_priority: normalizeDays(rows?.food_priority), user: !!rows, isLogin: !!rows?.username });
+    res.json({ days: normalizeArray(rows?.days), food_priority: normalizeArray(rows?.food_priority), user: !!rows, isLogin: !!rows?.username });
   } catch (error) {
     res.json({ error: "خطایی پیش آمد" });
   }
@@ -109,7 +109,7 @@ app.post("/api/save-data", async (req, res) => {
     await savefoodPriority(pool, userID, foods);
     await saveDays(pool, userID, days);
     bot.sendMessage(userID, `اطلاعات شما با موفقیت ذخیره شد\n/start`);
-    res.json({ days: normalizeDays(rows?.days), food_priority: normalizeDays(rows?.food_priority), user: !!rows });
+    res.json({ days: normalizeArray(rows?.days), food_priority: normalizeArray(rows?.food_priority), user: !!rows });
   } catch (error) {
     res.json({ error: "خطایی هنگام ذخیره اطلاعات شما پیش آمد" });
   }

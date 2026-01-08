@@ -1,4 +1,4 @@
-import { ALLOWED_USERS, backKeyboard, buildAccountKeyboard, buildDaysKeyboard, buildDaysText, buildFoodKeyboard, buildHomeKeyboard, buildPreferenceText, DAYS, FOODS, normalizeDays } from "../utils/index.js";
+import { ALLOWED_USERS, backKeyboard, buildAccountKeyboard, buildDaysKeyboard, buildDaysText, buildFoodKeyboard, buildHomeKeyboard, buildPreferenceText, DAYS, FOODS, normalizeArray } from "../utils/index.js";
 import { getUser, logoutUser, saveDays, savefoodPriority, saveSession } from "../db/index.js";
 import { fetchUserProfile, loginUser } from "../api/services.js";
 
@@ -47,7 +47,7 @@ export default async function handleCallback(bot, query, pool, userState) {
       if (!state) {
         const user = await getUser(fromId, pool);
         state = {
-          foods: normalizeDays(user?.food_priority),
+          foods: normalizeArray(user?.food_priority),
           days: [],
         };
         userState.set(fromId, state);
@@ -129,7 +129,7 @@ export default async function handleCallback(bot, query, pool, userState) {
         const user = await getUser(fromId, pool);
         state = {
           foods: [],
-          days: normalizeDays(user?.days),
+          days: normalizeArray(user?.days),
         };
         userState.set(fromId, state);
       }
@@ -305,6 +305,9 @@ export default async function handleCallback(bot, query, pool, userState) {
 این پروژه Open Source هست و کامل روی <b>GitHub</b> منتشر شده.
 تمام اطلاعات حساس شما به‌صورت رمزگذاری‌شده در دیتابیس ذخیره می‌شن
 و هر زمان خواستید می‌تونید سورس کد رو بررسی کنید.
+
+https://github.com/MahdyarEn/samad-sharif
+راستی اگه از این پروژه خوشتون اومد ممنون میشم با «⭐️» دادن ازش حمایت کنید :)
 `;
         await bot.editMessageText(helpText, {
           chat_id: fromId,

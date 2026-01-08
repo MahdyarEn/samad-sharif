@@ -1,6 +1,6 @@
 import { getSelfWeekPrograms, loginUser, reserveFood } from "../api/services.js";
 import { clearReserveError, logoutUser, markReserveError, saveSession, setUserLastCheckedProgram } from "../db/index.js";
-import { buildHomeKeyboard, normalizeDays, sleep } from "../utils/index.js";
+import { buildHomeKeyboard, normalizeArray, sleep } from "../utils/index.js";
 
 export async function reserveForUsers(users, weekStartDate, pool, bot) {
   for (const user of users) {
@@ -26,11 +26,11 @@ export async function reserveForUsers(users, weekStartDate, pool, bot) {
       const allPrograms = apiResult.data.payload.selfWeekPrograms.flat();
       console.log(`AutoReserve user ${user.id}`);
 
-      const uDays = normalizeDays(user?.days);
+      const uDays = normalizeArray(user?.days);
       for (const day of uDays) {
         const dayPrograms = allPrograms.filter((p) => p.dayTranslated === day.english);
         if (dayPrograms.length == 0) continue;
-        const uFoods = normalizeDays(user?.food_priority);
+        const uFoods = normalizeArray(user?.food_priority);
         let program = null;
         for (const food of uFoods) {
           program = dayPrograms.find((p) => p?.foodName === food?.title);
