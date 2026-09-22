@@ -66,7 +66,16 @@ WHERE users.auto_reserve = 1
     access_token: u.access_token,
     food_priority: typeof u.food_priority === "string" ? JSON.parse(u.food_priority || "[]") : u.food_priority || [],
     days: typeof u.days === "string" ? JSON.parse(u.days || "[]") : u.days || [],
+    force_reserve: Number(u.force_reserve) === 1,
   }));
+}
+
+export async function setAutoReserve(pool, userId, enabled) {
+  await pool.query("UPDATE users SET auto_reserve = ? WHERE id = ?", [enabled ? 1 : 0, userId]);
+}
+
+export async function setForceReserve(pool, userId, enabled) {
+  await pool.query("UPDATE users SET force_reserve = ? WHERE id = ?", [enabled ? 1 : 0, userId]);
 }
 
 export async function getLastReservedWeek(pool) {

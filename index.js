@@ -50,12 +50,19 @@ async function initDb() {
         days JSON DEFAULT NULL,
 
         auto_reserve TINYINT(1) DEFAULT 1,
+        force_reserve TINYINT(1) DEFAULT 0,
         last_checked_program DATETIME DEFAULT NULL,
         last_error_at DATETIME DEFAULT NULL,
 
         PRIMARY KEY (id)
       ) ENGINE=InnoDB;
     `);
+
+    try {
+      await pool.query(`ALTER TABLE users ADD COLUMN force_reserve TINYINT(1) DEFAULT 0`);
+    } catch (e) {
+      // column already exists
+    }
 
     console.log("✅ MySQL connected");
   } catch (err) {
