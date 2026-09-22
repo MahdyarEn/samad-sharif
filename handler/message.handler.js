@@ -10,7 +10,7 @@ export default async function handleMessage(bot, msg, pool, userState) {
       return bot.sendMessage(
         fromId,
         `⛔️ شما دسترسی استفاده از این ربات را ندارید
-این ربات تنها برای دانشجویان ورودی 1404 دانشکده کامپیوتر قابل استفاده می‌باشد.`
+این ربات تنها برای دانشجویان ورودی 1404 دانشکده کامپیوتر قابل استفاده می‌باشد.`,
       );
     }
     const text = msg.text?.trim();
@@ -49,7 +49,7 @@ export default async function handleMessage(bot, msg, pool, userState) {
     }
 
     switch (true) {
-      case /^\/start(?:@\w+)?$/i.test(text):         
+      case /^\/start(?:@\w+)?$/i.test(text):
         bot.sendMessage(
           fromId,
           `سلام
@@ -57,21 +57,25 @@ export default async function handleMessage(bot, msg, pool, userState) {
 
 این ربات امکان رزرو خودکار غذای سلف را مطابق با ترجیحات شما فراهم می‌کند.
 
-✅ در حال حاضر تنها سلف مرکزی (غذای سلف و کاله) پشتیبانی می‌شود.
+<tg-emoji emoji-id="5427009714745517609">✅</tg-emoji> در حال حاضر تنها سلف مرکزی (غذای سلف و کاله) پشتیبانی می‌شود.
 
-📋 مراحل فعال‌سازی رزرو خودکار:
+<tg-emoji emoji-id="5226512880362332956">📖</tg-emoji> مراحل فعال‌سازی رزرو خودکار:
 • انتخاب حداقل یک غذا
 • انتخاب حداقل یک روز از هفته
 
-⚠️ پیش‌نیاز استفاده:
+<tg-emoji emoji-id="5213181173026533794">⚠️</tg-emoji> پیش‌نیاز استفاده:
 • داشتن اعتبار کافی در سامانه سماد
 
 توجه: تنظیمات فقط یک‌بار انجام می‌شود و در صورت نیاز، در هر زمان قابل تغییر است.
 
-🔔 ربات نتیجه هر تلاش برای رزرو (موفق یا ناموفق) را به‌صورت پیام به شما اطلاع می‌دهد.
+<tg-emoji emoji-id="5242628160297641831">🔔</tg-emoji> ربات نتیجه هر تلاش برای رزرو (موفق یا ناموفق) را به‌صورت پیام به شما اطلاع می‌دهد.
 
-لطفاً برای ادامه، یکی از گزینه‌های زیر را انتخاب نمایید 👇`,
-          { reply_markup: buildHomeKeyboard(!!user?.username) }
+<tg-emoji emoji-id="5434144690511290129">📢</tg-emoji> برای اطلاع‌رسانی از آغاز رزرو غذا، عضو کانال زیر شوید:
+@Sharifsamad
+
+لطفاً برای ادامه، یکی از گزینه‌های زیر را انتخاب نمایید <tg-emoji emoji-id="5470177992950946662">👇</tg-emoji>
+`,
+          { reply_markup: buildHomeKeyboard(!!user?.username), parse_mode: "HTML" },
         );
 
         break;
@@ -109,7 +113,7 @@ export default async function handleMessage(bot, msg, pool, userState) {
 
 —
 حالا یکی از عملیات زیر را انتخاب کنید 👇`,
-              { reply_markup: buildHomeKeyboard(true), parse_mode: "HTML" }
+              { reply_markup: buildHomeKeyboard(true), parse_mode: "HTML" },
             );
             userState.delete(fromId);
           } else {

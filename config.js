@@ -8,4 +8,5 @@ export default {
   SAMAD_PASSWORD: process.env.SAMAD_PASSWORD,
   WEB_PORT: process.env.PORT,
   DOMAIN: process.env.DOMAIN,
+  CHANNEL_ID: process.env.CHANNEL_ID,
 };
