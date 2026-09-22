@@ -5,7 +5,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "sync-foods": "node scripts/sync-foods.js"
   },
   "repository": {
     "type": "git",
@@ -22,6 +23,7 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
+    "jalaali-js": "^2.0.1",
     "mysql2": "^3.16.0",
     "node-cron": "^4.2.1",
     "node-telegram-bot-api": "^0.67.0"

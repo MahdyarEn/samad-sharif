@@ -56,7 +56,7 @@ export async function getAllReservation(username, password, access_token) {
   password = safeDecrypt(password);
   return api
     .get(
-      `/rest/reserves?weekStartDate=2026-01-03+00:00:00&selfType=NORMAL`,
+      `/rest/reserves?weekStartDate=2026-09-26+00:00:00&selfType=NORMAL`,
       qs.stringify({
         grant_type: "password",
         username,

@@ -2,33 +2,37 @@ import { fetchUserProfile, loginUser } from "../api/services.js";
 import config from "../config.js";
 import { getAdminAccessToken, setAdminAccessToken } from "../db/index.js";
 import crypto from "crypto";
+import * as jalaali from "jalaali-js";
 export function buildHomeKeyboard(isLogined) {
   if (!isLogined)
     return {
-      inline_keyboard: [[{ text: "🔐 ورود به سامانه", callback_data: `LOGIN_SAMAD` }], [{ text: "ℹ️ راهنما", callback_data: `HELP` }]],
+      inline_keyboard: [[{ text: "ورود به سامانه", callback_data: `LOGIN_SAMAD`, icon_custom_emoji_id: "5778570255555105942" }], [{ text: "راهنما", callback_data: `HELP`, icon_custom_emoji_id: "6028435952299413210" }]],
     };
 
   return {
     inline_keyboard: [
       [
-        { text: "📋 انتخاب روز های رزرو", callback_data: `MENU_RESERVE` },
-        { text: "⭐ انتخاب اولویت غذا", callback_data: `MENU_PREFERENCE` },
+        { text: "انتخاب روز های رزرو", callback_data: `MENU_RESERVE`, icon_custom_emoji_id: "5890937706803894250" },
+        { text: "انتخاب اولویت غذا", callback_data: `MENU_PREFERENCE`, icon_custom_emoji_id: "6041874690220233085" },
       ],
-      [{ text: "⚙️ حساب کاربری", callback_data: "MENU_ACCOUNT" }],
+      [
+        { text: "حساب کاربری", callback_data: "MENU_ACCOUNT", icon_custom_emoji_id: "6035084557378654059" },
+        { text: "تنظیمات", callback_data: "MENU_SETTINGS", icon_custom_emoji_id: "6032742198179532882" },
+      ],
       [
         {
-          text: "🛠 ورود به وب‌اپلیکیشن",
-          web_app: { url: config.DOMAIN },
+          text: "ورود به وب‌اپلیکیشن",
+          web_app: { url: config.DOMAIN, icon_custom_emoji_id: "5776233299424843260" },
         },
       ],
-      [{ text: "ℹ️ راهنما", callback_data: `HELP` }],
+      [{ text: "راهنما", callback_data: `HELP`, icon_custom_emoji_id: "6028435952299413210" }],
     ],
   };
 }
 
 export function backKeyboard() {
   return {
-    inline_keyboard: [[{ text: "🔙 بازگشت", callback_data: "BACK" }]],
+    inline_keyboard: [[{ text: "بازگشت", callback_data: "BACK", icon_custom_emoji_id: "6039539366177541657" }]],
   };
 }
 
@@ -100,7 +104,43 @@ export const FOODS = [
   { id: 54, title: "سینی ساندویچ و کوکوسبزی (کاله)" },
   { id: 55, title: "سینی پیتزا و کراکت (کاله)" },
   { id: 56, title: "سینی پیتزا و کوکوسبزی (کاله)" },
+
+  { id: 57, title: "رشته پلو" },
+  { id: 58, title: "پاستاچیکن آلفردو(فست فودشریفی)" },
+  { id: 59, title: "پاستاچیکن آلفردو(کلین فود)" },
+  { id: 60, title: "چلوجوجه کباب مکزیکی(فست فودشریفی)" },
+  { id: 61, title: "چلوکباب کوبیده نگین دار(فست فودشریفی)" },
+  { id: 62, title: "چیزبرگر کلاسیک (کاله)" },
+  { id: 63, title: "سالاد الویه مرغ (کاله)" },
+  { id: 64, title: "ساندویچ پپرونی مخصوص (یونی فود)" },
+  { id: 65, title: "ساندویچ دنر کباب گوشت (کلین فود)" },
+  { id: 66, title: "ساندویچ دنرکباب گوشت و پنیر(یونی فود)" },
+  { id: 67, title: "ساندویچ دنرکباب مرغ و پنیر(یونی فود)" },
+  { id: 68, title: "ساندویچ دنرکباب مرغ(کلین فود)" },
+  { id: 69, title: "ساندویچ ژامبون گوشت (کاله)" },
+  { id: 70, title: "ساندویچ ژامبون گوشت(یونی فود)" },
+  { id: 71, title: "ساندویچ ژامبون مرغ (کاله)" },
+  { id: 72, title: "ساندویچ ژامبون مرغ(یونی فود)" },
+  { id: 73, title: "ساندویچ شنیتسل مرغ(فست فودشریفی)" },
+  { id: 74, title: "ساندویچ مرغ انار و گردو (کاله)" },
+  { id: 75, title: "ساندویچ مرغ پستو (کاله)" },
+  { id: 76, title: "ساندویچ مرغ تنوری(فست فودشریفی)" },
+  { id: 77, title: "ساندویچ مرغ گریل (کاله)" },
+  { id: 78, title: "ساندویچ همبرگر ذغالی(کلین فود)" },
+  { id: 79, title: "کلاب ژامبون مرغ دبل(کلانا)" },
+  { id: 80, title: "کلاب سینه بوقلمون دبل (کلانا)" },
+  { id: 81, title: "کلاب فیله گوشت دبل(کلانا)" },
+  { id: 82, title: "کلاب مرغ چیلی دبل(کلانا)" },
+  { id: 83, title: "کلاب مرغ مخصوص دبل" },
+  { id: 84, title: "لازانیا(کلین فود)" },
 ];
+
+export function normalizeFoodName(name) {
+  return String(name || "")
+    .replace(/\u200c/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 export function buildPreferenceText(userId, foods, userFoodState) {
   const state = userFoodState.get(userId);
@@ -114,7 +154,7 @@ export function buildPreferenceText(userId, foods, userFoodState) {
     return `${index + 1}. ${food.title}`;
   });
 
-  return `✅ انتخاب فعلی شما (به ترتیب اولویت):\n\n${lines.join("\n")}\n\n👇 برای تغییر، روی دکمه‌ها بزنید`;
+  return `<tg-emoji emoji-id="5427009714745517609">✅</tg-emoji> انتخاب فعلی شما (به ترتیب اولویت):\n\n${lines.join("\n")}\n\n<tg-emoji emoji-id="5470177992950946662">👇</tg-emoji> برای تغییر، روی دکمه‌ها بزنید`;
 }
 
 export function buildFoodKeyboard(userId, foods, userFoodState) {
@@ -123,18 +163,20 @@ export function buildFoodKeyboard(userId, foods, userFoodState) {
 
   const keyboard = foods.map((food) => {
     const index = selected.findIndex((f) => f.id === food.id);
-    const text = index !== -1 ? `🟢 ${index + 1}. ${food.title}` : `⚪️ ${food.title}`;
+    const text = index !== -1 ? `${index + 1}. ${food.title}` : `${food.title}`;
     return [
       {
         text,
+        icon_custom_emoji_id: `${index !== -1 ? "5774022692642492953" : "5884332803016891855"}`,
+        
         callback_data: `FOOD_TOGGLE:${food.id}`,
       },
     ];
   });
 
   keyboard.push([
-    { text: "🔙 بازگشت", callback_data: "BACK" },
-    { text: "✅ ثبت نهایی", callback_data: "FOOD_CONFIRM" },
+    { text: "بازگشت", callback_data: "BACK", icon_custom_emoji_id: "6039539366177541657" },
+    { text: "ثبت نهایی", callback_data: "FOOD_CONFIRM", icon_custom_emoji_id: "5774022692642492953" },
   ]);
   return { inline_keyboard: keyboard };
 }
@@ -154,15 +196,17 @@ export function buildDaysKeyboard(userId, days, userState) {
     const isSelected = selectedDays.some((d) => d.id === day.id);
     return [
       {
-        text: `${isSelected ? "✅ " : "❌ "}${day.title}`,
+        // text: `${isSelected ? "✅ " : "❌ "}${day.title}`,
+        text: `${day.title}`,
+        icon_custom_emoji_id: `${isSelected ? "5774022692642492953" : "5774077015388852135"}`,
         callback_data: `DAY_TOGGLE:${day.id}`,
       },
     ];
   });
 
   buttons.push([
-    { text: "🔙 بازگشت", callback_data: "BACK" },
-    { text: "تأیید روزها ✅", callback_data: "DAYS_CONFIRM" },
+    { text: "بازگشت", callback_data: "BACK", icon_custom_emoji_id: "6039539366177541657" },
+    { text: "تأیید روزها", callback_data: "DAYS_CONFIRM", icon_custom_emoji_id: "5774022692642492953" },
   ]);
 
   return {
@@ -178,7 +222,7 @@ export function buildDaysText(userId, days, userState) {
   }
 
   const list = selectedDays.map((d) => `• ${d.title}`).join("\n");
-  return `📅 روزهای انتخاب‌شده:\n${list}\n\nمی‌توانید روزهای دیگر را اضافه یا حذف کنید:`;
+  return `<tg-emoji emoji-id="5431897022456145283">📆</tg-emoji> روزهای انتخاب‌شده:\n${list}\n\nمی‌توانید روزهای دیگر را اضافه یا حذف کنید:`;
 }
 
 export function getNextSaturday() {
@@ -192,7 +236,75 @@ export function getNextSaturday() {
 export const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 export function buildAccountKeyboard() {
   return {
-    inline_keyboard: [[{ text: "👤 اطلاعات کاربری", callback_data: "ACCOUNT_INFO" }], [{ text: "✏️ ویرایش اطلاعات ورود", callback_data: "ACCOUNT_EDIT_LOGIN" }], [{ text: "🚪 خروج از حساب کاربری", callback_data: "ACCOUNT_LOGOUT" }], [{ text: "🔙 بازگشت", callback_data: "BACK" }]],
+    inline_keyboard: [
+      [{ text: "اطلاعات کاربری", callback_data: "ACCOUNT_INFO", icon_custom_emoji_id: "6035084557378654059" }],
+      [{ text: "ویرایش اطلاعات ورود", callback_data: "ACCOUNT_EDIT_LOGIN", icon_custom_emoji_id: "6039614175917903752" }],
+      [{ text: "خروج از حساب کاربری", callback_data: "ACCOUNT_LOGOUT", icon_custom_emoji_id: "6032608126480421344" }],
+      [{ text: "بازگشت", callback_data: "BACK", icon_custom_emoji_id: "6039539366177541657" }],
+    ],
+  };
+}
+
+function parseGregorianYmd(value) {
+  if (!value) return null;
+  const str = typeof value === "string" ? value : "";
+  const fromStr = str.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (fromStr) return { y: Number(fromStr[1]), m: Number(fromStr[2]), d: Number(fromStr[3]) };
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return { y: value.getFullYear(), m: value.getMonth() + 1, d: value.getDate() };
+  }
+
+  return null;
+}
+
+export function formatLastCheckedProgram(value) {
+  if (!value) return "هنوز بررسی نشده";
+  const ymd = parseGregorianYmd(value);
+  if (!ymd) return String(value).slice(0, 10);
+
+  const { jy, jm, jd } = jalaali.toJalaali(ymd.y, ymd.m, ymd.d);
+  return `${jy}/${String(jm).padStart(2, "0")}/${String(jd).padStart(2, "0")}`;
+}
+
+export function buildSettingsText(user) {
+  const autoOn = Number(user?.auto_reserve) === 1;
+  const forceOn = Number(user?.force_reserve) === 1;
+  const lastChecked = formatLastCheckedProgram(user?.last_checked_program);
+
+  return `<tg-emoji emoji-id="5818705028424141605">⚙️</tg-emoji> <b>تنظیمات رزرو</b>
+
+<tg-emoji emoji-id="5850693253355017860">#️⃣</tg-emoji> رزرو خودکار: <b>${autoOn ? `روشن <tg-emoji emoji-id="5774022692642492953">✅</tg-emoji>` : `خاموش <tg-emoji emoji-id="5774077015388852135">❌</tg-emoji>`}</b>
+<tg-emoji emoji-id="5850693253355017860">#️⃣</tg-emoji> رزرو اجباری غذای روز: <b>${forceOn ? `روشن <tg-emoji emoji-id="5774022692642492953">✅</tg-emoji>` : `خاموش <tg-emoji emoji-id="5774077015388852135">❌</tg-emoji>`}</b>
+<tg-emoji emoji-id="5850693253355017860">#️⃣</tg-emoji> آخرین هفته بررسی‌شده: <code>${lastChecked}</code>
+
+<tg-emoji emoji-id="5314346928660554905">⚠️</tg-emoji> اگر رزرو اجباری روشن باشد و هیچ‌کدام از اولویت‌های شما در منوی آن روز نباشد (یا همه پر شده باشند)، ربات از بقیه غذاهای همان روز امتحان می‌کند تا یکی موفق شود.
+
+روی دکمه‌ها بزنید تا وضعیت را تغییر دهید <tg-emoji emoji-id="5470177992950946662">👇</tg-emoji>`;
+}
+
+export function buildSettingsKeyboard(user) {
+  const autoOn = Number(user?.auto_reserve) === 1;
+  const forceOn = Number(user?.force_reserve) === 1;
+
+  return {
+    inline_keyboard: [
+      [
+        {
+          text: `رزرو خودکار: ${autoOn ? "روشن" : "خاموش"}`,
+          callback_data: "SETTINGS_TOGGLE_AUTO",
+          icon_custom_emoji_id: `${autoOn ? "5774022692642492953" : "5774077015388852135"}`,
+        },
+      ],
+      [
+        {
+          text: `رزرو اجباری غذای روز: ${forceOn ? "روشن" : "خاموش"}`,
+          callback_data: "SETTINGS_TOGGLE_FORCE",
+          icon_custom_emoji_id: `${forceOn ? "5774022692642492953" : "5774077015388852135"}`,
+        },
+      ],
+      [{ text: "بازگشت", callback_data: "BACK", icon_custom_emoji_id: "6039539366177541657" }],
+    ],
   };
 }
 
