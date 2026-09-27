@@ -10,14 +10,18 @@ telegram.MainButton.setParams({
 });
 
 const daysBox = document.getElementById("days-box");
+const settingsBox = document.getElementById("settings-box");
 const prefListEl = document.getElementById("preference-list");
 const modalEl = document.getElementById("food-modal");
 const allFoodsContainer = document.getElementById("all-foods-container");
 const searchInput = document.getElementById("food-search");
+const foodModalCount = document.getElementById("food-modal-count");
 
 let apiData = null;
 let userData = { foods: [] };
 let selectedDays = [];
+let autoReserve = true;
+let forceReserve = false;
 
 const DAYS = [
   { id: 0, title: "شنبه", english: "Saturday" },
@@ -26,6 +30,28 @@ const DAYS = [
   { id: 3, title: "سه‌شنبه", english: "Tuesday" },
   { id: 4, title: "چهارشنبه", english: "Wednesday" },
 ];
+
+const FOOD_CATEGORIES = [
+  { id: "self", title: "🍽 سلف مرکزی" },
+  { id: "kaleh", title: "🥡 کاله" },
+  { id: "unifood", title: "🥪 یونی‌فود" },
+  { id: "kalana", title: "🌮 کلانا" },
+  { id: "sharifi", title: "🍔 فست‌فود شریف" },
+  { id: "clean", title: "🥗 کلین‌فود" },
+];
+
+function getFoodCategory(title = "") {
+  const t = String(title || "")
+    .replace(/\u200c/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (/یونیفود|یونی\s*فود/.test(t)) return FOOD_CATEGORIES.find((c) => c.id === "unifood");
+  if (/کلینفود|کلین\s*فود/.test(t)) return FOOD_CATEGORIES.find((c) => c.id === "clean");
+  if (/فستفود\s*شریف|فست\s*فود\s*شریف/.test(t)) return FOOD_CATEGORIES.find((c) => c.id === "sharifi");
+  if (/کلانا/.test(t) || /^کلاب\s/.test(t)) return FOOD_CATEGORIES.find((c) => c.id === "kalana");
+  if (/کاله/.test(t)) return FOOD_CATEGORIES.find((c) => c.id === "kaleh");
+  return FOOD_CATEGORIES.find((c) => c.id === "self");
+}
 
 const ALL_FOODS = [
   { id: 1, title: "چلو کباب کوبیده" },
@@ -85,33 +111,33 @@ const ALL_FOODS = [
   { id: 55, title: "سینی پیتزا و کراکت (کاله)" },
   { id: 56, title: "سینی پیتزا و کوکوسبزی (کاله)" },
   { id: 57, title: "رشته پلو" },
-  { id: 58, title: "پاستاچیکن آلفردو(فست فودشریفی)" },
-  { id: 59, title: "پاستاچیکن آلفردو(کلین فود)" },
-  { id: 60, title: "چلوجوجه کباب مکزیکی(فست فودشریفی)" },
-  { id: 61, title: "چلوکباب کوبیده نگین دار(فست فودشریفی)" },
+  { id: 58, title: "پاستاچیکن آلفردو (فست‌فود شریف)" },
+  { id: 59, title: "پاستاچیکن آلفردو (کلین‌فود)" },
+  { id: 60, title: "چلوجوجه‌کباب‌مکزیکی (فست‌فود شریف)" },
+  { id: 61, title: "چلوکباب‌کوبیده نگین‌دار (فست‌فود شریف)" },
   { id: 62, title: "چیزبرگر کلاسیک (کاله)" },
   { id: 63, title: "سالاد الویه مرغ (کاله)" },
-  { id: 64, title: "ساندویچ پپرونی مخصوص (یونی فود)" },
-  { id: 65, title: "ساندویچ دنر کباب گوشت (کلین فود)" },
-  { id: 66, title: "ساندویچ دنرکباب گوشت و پنیر(یونی فود)" },
-  { id: 67, title: "ساندویچ دنرکباب مرغ و پنیر(یونی فود)" },
-  { id: 68, title: "ساندویچ دنرکباب مرغ(کلین فود)" },
+  { id: 64, title: "ساندویچ پپرونی‌مخصوص (یونی‌فود)" },
+  { id: 65, title: "ساندویچ دنر‌کباب‌گوشت (کلین‌فود)" },
+  { id: 66, title: "ساندویچ دنرکباب‌گوشت‌و‌پنیر (یونی‌فود)" },
+  { id: 67, title: "ساندویچ دنرکباب‌مرغ‌و‌پنیر (یونی‌فود)" },
+  { id: 68, title: "ساندویچ دنرکباب‌مرغ (کلین‌فود)" },
   { id: 69, title: "ساندویچ ژامبون گوشت (کاله)" },
-  { id: 70, title: "ساندویچ ژامبون گوشت(یونی فود)" },
+  { id: 70, title: "ساندویچ ژامبون‌گوشت (یونی‌فود)" },
   { id: 71, title: "ساندویچ ژامبون مرغ (کاله)" },
-  { id: 72, title: "ساندویچ ژامبون مرغ(یونی فود)" },
-  { id: 73, title: "ساندویچ شنیتسل مرغ(فست فودشریفی)" },
+  { id: 72, title: "ساندویچ ژامبون‌مرغ (یونی‌فود)" },
+  { id: 73, title: "ساندویچ شنیتسل‌مرغ (فست‌فود شریف)" },
   { id: 74, title: "ساندویچ مرغ انار و گردو (کاله)" },
   { id: 75, title: "ساندویچ مرغ پستو (کاله)" },
-  { id: 76, title: "ساندویچ مرغ تنوری(فست فودشریفی)" },
+  { id: 76, title: "ساندویچ مرغ‌تنوری (فست‌فود شریف)" },
   { id: 77, title: "ساندویچ مرغ گریل (کاله)" },
-  { id: 78, title: "ساندویچ همبرگر ذغالی(کلین فود)" },
-  { id: 79, title: "کلاب ژامبون مرغ دبل(کلانا)" },
-  { id: 80, title: "کلاب سینه بوقلمون دبل (کلانا)" },
-  { id: 81, title: "کلاب فیله گوشت دبل(کلانا)" },
-  { id: 82, title: "کلاب مرغ چیلی دبل(کلانا)" },
-  { id: 83, title: "کلاب مرغ مخصوص دبل" },
-  { id: 84, title: "لازانیا(کلین فود)" },
+  { id: 78, title: "ساندویچ همبرگر‌ذغالی (کلین‌فود)" },
+  { id: 79, title: "کلاب ژامبون‌مرغ‌دبل (کلانا)" },
+  { id: 80, title: "کلاب سینه‌بوقلمون‌دبل (کلانا)" },
+  { id: 81, title: "کلاب فیله‌گوشت‌دبل (کلانا)" },
+  { id: 82, title: "کلاب مرغ‌چیلی‌دبل (کلانا)" },
+  { id: 83, title: "کلاب مرغ‌مخصوص‌دبل (کلانا)" },
+  { id: 84, title: "لازانیا (کلین‌فود)" },
 ];
 
 // =======================================
@@ -143,6 +169,8 @@ const saveData = async () => {
         initData: telegram.initData,
         days: selectedDays,
         foods: userData.foods,
+        auto_reserve: autoReserve,
+        force_reserve: forceReserve,
       }),
     });
     if (response.status === 200) {
@@ -168,6 +196,47 @@ telegram.MainButton.onClick(saveData);
 
 function markAsChanged() {
   telegram.MainButton.show();
+}
+
+function renderSettings() {
+  if (!settingsBox) return;
+  settingsBox.innerHTML = "";
+
+  const options = [
+    {
+      key: "auto",
+      title: "رزرو خودکار",
+      checked: autoReserve,
+      onChange: (v) => {
+        autoReserve = v;
+      },
+    },
+    {
+      key: "force",
+      title: "رزرو اجباری غذای روز",
+      checked: forceReserve,
+      onChange: (v) => {
+        forceReserve = v;
+      },
+    },
+  ];
+
+  options.forEach((item) => {
+    const label = document.createElement("label");
+    label.className = `bg-tg-secondary w-full p-3 flex items-center justify-between gap-2 cursor-pointer rounded-lg border border-transparent shadow-sm select-none transition-all ${item.checked ? "active" : ""}`;
+    label.innerHTML = `
+      <span class="text-sm font-medium text-tg-text">${item.title}</span>
+      <input type="checkbox" class="w-4 h-4 accent-tg-button" ${item.checked ? "checked" : ""} />
+    `;
+    const input = label.querySelector("input");
+    input.addEventListener("change", (e) => {
+      item.onChange(e.target.checked);
+      if (e.target.checked) label.classList.add("active");
+      else label.classList.remove("active");
+      markAsChanged();
+    });
+    settingsBox.appendChild(label);
+  });
 }
 
 function renderDays() {
@@ -216,15 +285,19 @@ function renderPreferences() {
   }
 
   userData.foods.forEach((food, index) => {
+    const cat = getFoodCategory(food.title);
     const li = document.createElement("li");
     li.className = "flex items-center justify-between bg-tg-secondary p-3 rounded-lg border border-tg-separator select-none group";
     li.dataset.id = food.id;
     li.innerHTML = `
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-3 min-w-0">
                 <span class="text-tg-button font-bold text-sm min-w-[1.2rem]">${index + 1}</span>
-                <span class="text-tg-text text-sm font-medium">${food.title}</span>
+                <div class="min-w-0">
+                  <div class="text-tg-text text-sm font-medium truncate">${food.title}</div>
+                  <div class="text-[11px] text-tg-subtitle mt-0.5">${cat.title}</div>
+                </div>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 shrink-0">
                 <button onclick="window.removeFood(${food.id})" class="text-tg-destructive p-1 hover:bg-red-50/10 rounded transition">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                 </button>
@@ -248,11 +321,15 @@ function updateFoodOrder() {
   renderPreferences();
 }
 
+function updateModalCount() {
+  if (foodModalCount) foodModalCount.textContent = String(userData.foods?.length || 0);
+}
+
 window.openFoodModal = function () {
   modalEl.classList.remove("hidden");
-
-  renderAllFoodsList();
   searchInput.value = "";
+  renderAllFoodsList();
+  updateModalCount();
   searchInput.focus();
 };
 
@@ -263,32 +340,59 @@ window.closeFoodModal = function () {
 window.removeFood = function (id) {
   userData.foods = userData.foods.filter((f) => f.id !== id);
   renderPreferences();
+  if (!modalEl.classList.contains("hidden")) {
+    renderAllFoodsList(searchInput.value);
+    updateModalCount();
+  }
+  markAsChanged();
+};
+
+window.toggleFood = function (id) {
+  const exists = userData.foods.find((f) => f.id === id);
+  if (exists) {
+    userData.foods = userData.foods.filter((f) => f.id !== id);
+  } else {
+    const food = ALL_FOODS.find((f) => f.id === id);
+    if (food) userData.foods.push(food);
+  }
+  renderPreferences();
+  renderAllFoodsList(searchInput.value);
+  updateModalCount();
   markAsChanged();
 };
 
 function renderAllFoodsList(searchTerm = "") {
   allFoodsContainer.innerHTML = "";
-  const filtered = ALL_FOODS.filter((f) => !userData.foods.some((p) => p.id === f.id) && f.title.includes(searchTerm));
+  const term = String(searchTerm || "").trim();
+  const filtered = ALL_FOODS.filter((f) => !term || f.title.includes(term));
 
   if (filtered.length === 0) {
     allFoodsContainer.innerHTML = `<div class="text-center text-tg-hint py-4 text-sm">موردی یافت نشد</div>`;
     return;
   }
 
-  filtered.forEach((food) => {
-    const div = document.createElement("div");
-    div.className = "p-3 border-b border-tg-separator last:border-0 hover:bg-tg-secondary cursor-pointer transition flex justify-between items-center rounded-lg";
-    div.innerHTML = `<span class="text-tg-text text-sm">${food.title}</span> <span class="text-tg-button text-xl font-light">+</span>`;
+  for (const cat of FOOD_CATEGORIES) {
+    const items = filtered.filter((f) => getFoodCategory(f.title).id === cat.id);
+    if (items.length === 0) continue;
 
-    div.onclick = () => {
-      userData.foods.push(food);
-      renderPreferences();
-      window.closeFoodModal();
-      markAsChanged();
-    };
+    const header = document.createElement("div");
+    header.className = "sticky top-0 z-10 bg-tg-section pt-2 pb-1";
+    header.innerHTML = `<div class="text-xs font-bold text-tg-section-header px-1">${cat.title}</div>`;
+    allFoodsContainer.appendChild(header);
 
-    allFoodsContainer.appendChild(div);
-  });
+    items.forEach((food) => {
+      const selectedIndex = userData.foods.findIndex((p) => p.id === food.id);
+      const isSelected = selectedIndex !== -1;
+      const div = document.createElement("div");
+      div.className = `p-3 border border-transparent cursor-pointer transition flex justify-between items-center rounded-lg ${isSelected ? "active" : "hover:bg-tg-secondary"}`;
+      div.innerHTML = `
+        <span class="text-tg-text text-sm ${isSelected ? "font-medium" : ""}">${isSelected ? `${selectedIndex + 1}. ` : ""}${food.title}</span>
+        <span class="text-tg-button text-base font-medium min-w-[1.5rem] text-center">${isSelected ? "✓" : "+"}</span>
+      `;
+      div.onclick = () => window.toggleFood(food.id);
+      allFoodsContainer.appendChild(div);
+    });
+  }
 }
 
 searchInput.addEventListener("input", (e) => {
@@ -298,9 +402,10 @@ searchInput.addEventListener("input", (e) => {
 function setError(err) {
   document.querySelector("#err-msg").innerHTML = err;
   document.querySelector("#error").classList.remove("hidden");
-  document.querySelector("#food-section").remove();
-  document.querySelector("#days-section").remove();
-  document.querySelector("#food-modal").remove();
+  document.querySelector("#food-section")?.remove();
+  document.querySelector("#days-section")?.remove();
+  document.querySelector("#settings-section")?.remove();
+  document.querySelector("#food-modal")?.remove();
 }
 
 function closeWebApp() {
@@ -310,6 +415,7 @@ function closeWebApp() {
 async function initApp() {
   daysBox.innerHTML = '<div class="col-span-2 text-center text-tg-hint py-2 text-sm">در حال بارگذاری...</div>';
   prefListEl.innerHTML = '<div class="text-center text-tg-hint py-2 text-sm">در حال بارگذاری...</div>';
+  if (settingsBox) settingsBox.innerHTML = '<div class="text-center text-tg-hint py-2 text-sm">در حال بارگذاری...</div>';
   apiData = await getUserData();
 
   if (apiData) {
@@ -318,12 +424,15 @@ async function initApp() {
     } else {
       if (apiData?.food_priority) userData.foods = apiData.food_priority;
       if (apiData?.days) selectedDays = apiData.days;
+      autoReserve = apiData?.auto_reserve !== false;
+      forceReserve = !!apiData?.force_reserve;
       document.querySelector("#error").remove();
     }
   } else {
     setError("این برنامه فقط از طریق ربات تلگرام قابل دسترسی است.\nلطفا لینک را داخل تلگرام باز کنید.");
   }
 
+  renderSettings();
   renderDays();
   renderPreferences();
 }

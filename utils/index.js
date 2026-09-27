@@ -106,33 +106,33 @@ export const FOODS = [
   { id: 56, title: "سینی پیتزا و کوکوسبزی (کاله)" },
 
   { id: 57, title: "رشته پلو" },
-  { id: 58, title: "پاستاچیکن آلفردو(فست فودشریفی)" },
-  { id: 59, title: "پاستاچیکن آلفردو(کلین فود)" },
-  { id: 60, title: "چلوجوجه کباب مکزیکی(فست فودشریفی)" },
-  { id: 61, title: "چلوکباب کوبیده نگین دار(فست فودشریفی)" },
+  { id: 58, title: "پاستاچیکن آلفردو (فست‌فود شریف)" },
+  { id: 59, title: "پاستاچیکن آلفردو (کلین‌فود)" },
+  { id: 60, title: "چلوجوجه‌کباب‌مکزیکی (فست‌فود شریف)" },
+  { id: 61, title: "چلوکباب‌کوبیده نگین‌دار (فست‌فود شریف)" },
   { id: 62, title: "چیزبرگر کلاسیک (کاله)" },
   { id: 63, title: "سالاد الویه مرغ (کاله)" },
-  { id: 64, title: "ساندویچ پپرونی مخصوص (یونی فود)" },
-  { id: 65, title: "ساندویچ دنر کباب گوشت (کلین فود)" },
-  { id: 66, title: "ساندویچ دنرکباب گوشت و پنیر(یونی فود)" },
-  { id: 67, title: "ساندویچ دنرکباب مرغ و پنیر(یونی فود)" },
-  { id: 68, title: "ساندویچ دنرکباب مرغ(کلین فود)" },
+  { id: 64, title: "ساندویچ پپرونی‌مخصوص (یونی‌فود)" },
+  { id: 65, title: "ساندویچ دنر‌کباب‌گوشت (کلین‌فود)" },
+  { id: 66, title: "ساندویچ دنرکباب‌گوشت‌و‌پنیر (یونی‌فود)" },
+  { id: 67, title: "ساندویچ دنرکباب‌مرغ‌و‌پنیر (یونی‌فود)" },
+  { id: 68, title: "ساندویچ دنرکباب‌مرغ (کلین‌فود)" },
   { id: 69, title: "ساندویچ ژامبون گوشت (کاله)" },
-  { id: 70, title: "ساندویچ ژامبون گوشت(یونی فود)" },
+  { id: 70, title: "ساندویچ ژامبون‌گوشت (یونی‌فود)" },
   { id: 71, title: "ساندویچ ژامبون مرغ (کاله)" },
-  { id: 72, title: "ساندویچ ژامبون مرغ(یونی فود)" },
-  { id: 73, title: "ساندویچ شنیتسل مرغ(فست فودشریفی)" },
+  { id: 72, title: "ساندویچ ژامبون‌مرغ (یونی‌فود)" },
+  { id: 73, title: "ساندویچ شنیتسل‌مرغ (فست‌فود شریف)" },
   { id: 74, title: "ساندویچ مرغ انار و گردو (کاله)" },
   { id: 75, title: "ساندویچ مرغ پستو (کاله)" },
-  { id: 76, title: "ساندویچ مرغ تنوری(فست فودشریفی)" },
+  { id: 76, title: "ساندویچ مرغ‌تنوری (فست‌فود شریف)" },
   { id: 77, title: "ساندویچ مرغ گریل (کاله)" },
-  { id: 78, title: "ساندویچ همبرگر ذغالی(کلین فود)" },
-  { id: 79, title: "کلاب ژامبون مرغ دبل(کلانا)" },
-  { id: 80, title: "کلاب سینه بوقلمون دبل (کلانا)" },
-  { id: 81, title: "کلاب فیله گوشت دبل(کلانا)" },
-  { id: 82, title: "کلاب مرغ چیلی دبل(کلانا)" },
-  { id: 83, title: "کلاب مرغ مخصوص دبل" },
-  { id: 84, title: "لازانیا(کلین فود)" },
+  { id: 78, title: "ساندویچ همبرگر‌ذغالی (کلین‌فود)" },
+  { id: 79, title: "کلاب ژامبون‌مرغ‌دبل (کلانا)" },
+  { id: 80, title: "کلاب سینه‌بوقلمون‌دبل (کلانا)" },
+  { id: 81, title: "کلاب فیله‌گوشت‌دبل (کلانا)" },
+  { id: 82, title: "کلاب مرغ‌چیلی‌دبل (کلانا)" },
+  { id: 83, title: "کلاب مرغ‌مخصوص‌دبل (کلانا)" },
+  { id: 84, title: "لازانیا (کلین‌فود)" },
 ];
 
 export function normalizeFoodName(name) {
@@ -140,6 +140,25 @@ export function normalizeFoodName(name) {
     .replace(/\u200c/g, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+export const FOOD_CATEGORIES = [
+  { id: "self", title: "سلف مرکزی", icon_custom_emoji_id: "5359678839591018693" },
+  { id: "kaleh", title: "کاله", icon_custom_emoji_id: "5328111877937438773" },
+  { id: "unifood", title: "یونی‌فود", icon_custom_emoji_id: "5328233026079957815" },
+  { id: "kalana", title: "کلانا", icon_custom_emoji_id: "5328093903499305675" },
+  { id: "sharifi", title: "فست‌فود شریف", icon_custom_emoji_id: "5330083572868979930" },
+  { id: "clean", title: "کلین‌فود", icon_custom_emoji_id: "5328065681269203890" },
+];
+
+export function getFoodCategory(title = "") {
+  const t = normalizeFoodName(title);
+  if (/یونیفود|یونی\s*فود/.test(t)) return FOOD_CATEGORIES.find((c) => c.id === "unifood");
+  if (/کلینفود|کلین\s*فود/.test(t)) return FOOD_CATEGORIES.find((c) => c.id === "clean");
+  if (/فستفود\s*شریف|فست\s*فود\s*شریف/.test(t)) return FOOD_CATEGORIES.find((c) => c.id === "sharifi");
+  if (/کلانا/.test(t) || /^کلاب\s/.test(t)) return FOOD_CATEGORIES.find((c) => c.id === "kalana");
+  if (/کاله/.test(t)) return FOOD_CATEGORIES.find((c) => c.id === "kaleh");
+  return FOOD_CATEGORIES.find((c) => c.id === "self");
 }
 
 export function buildPreferenceText(userId, foods, userFoodState) {
@@ -160,19 +179,32 @@ export function buildPreferenceText(userId, foods, userFoodState) {
 export function buildFoodKeyboard(userId, foods, userFoodState) {
   const state = userFoodState.get(userId);
   const selected = Array.isArray(state?.foods) ? state.foods : [];
+  const keyboard = [];
 
-  const keyboard = foods.map((food) => {
-    const index = selected.findIndex((f) => f.id === food.id);
-    const text = index !== -1 ? `${index + 1}. ${food.title}` : `${food.title}`;
-    return [
+  for (const cat of FOOD_CATEGORIES) {
+    const items = foods.filter((f) => getFoodCategory(f.title).id === cat.id);
+    if (items.length === 0) continue;
+
+    keyboard.push([
       {
-        text,
-        icon_custom_emoji_id: `${index !== -1 ? "5774022692642492953" : "5884332803016891855"}`,
-        
-        callback_data: `FOOD_TOGGLE:${food.id}`,
+        text: cat.title,
+        callback_data: `FOOD_CAT:${cat.id}`,
+        icon_custom_emoji_id: cat.icon_custom_emoji_id,
+        style: "primary",
       },
-    ];
-  });
+    ]);
+
+    for (const food of items) {
+      const index = selected.findIndex((f) => f.id === food.id);
+      const isSelected = index !== -1;
+      const btn = {
+        text: isSelected ? `${index + 1}. ${food.title}` : food.title,
+        callback_data: `FOOD_TOGGLE:${food.id}`,
+      };
+      if (isSelected) btn.style = "success";
+      keyboard.push([btn]);
+    }
+  }
 
   keyboard.push([
     { text: "بازگشت", callback_data: "BACK", icon_custom_emoji_id: "6039539366177541657" },
