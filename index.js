@@ -5,7 +5,7 @@ import handleCallback from "./handler/callback.handler.js";
 import handleMessage from "./handler/message.handler.js";
 import { startAutoReserve } from "./auto/scheduler.js";
 import { normalizeArray, verifyTelegramWebAppData } from "./utils/index.js";
-import { saveDays, savefoodPriority } from "./db/index.js";
+import { saveDays, savefoodPriority, setAutoReserve, setForceReserve } from "./db/index.js";
 import express from "express";
 import cors from "cors";
 
@@ -95,8 +95,15 @@ app.post("/api/get-data", async (req, res) => {
     }
     const userID = validate.id;
 
-    const [[rows]] = await pool.query("SELECT days,food_priority,username FROM users WHERE id = ?", [userID]);
-    res.json({ days: normalizeArray(rows?.days), food_priority: normalizeArray(rows?.food_priority), user: !!rows, isLogin: !!rows?.username });
+    const [[rows]] = await pool.query("SELECT days, food_priority, username, auto_reserve, force_reserve FROM users WHERE id = ?", [userID]);
+    res.json({
+      days: normalizeArray(rows?.days),
+      food_priority: normalizeArray(rows?.food_priority),
+      auto_reserve: Number(rows?.auto_reserve) === 1,
+      force_reserve: Number(rows?.force_reserve) === 1,
+      user: !!rows,
+      isLogin: !!rows?.username,
+    });
   } catch (error) {
     res.json({ error: "خطایی پیش آمد" });
   }
@@ -112,9 +119,11 @@ app.post("/api/save-data", async (req, res) => {
     }
     const userID = validate.id;
     const [[rows]] = await pool.query("SELECT days,food_priority FROM users WHERE id = ?", [userID]);
-    const { foods, days } = req?.body;
+    const { foods, days, auto_reserve, force_reserve } = req?.body;
     await savefoodPriority(pool, userID, foods);
     await saveDays(pool, userID, days);
+    if (typeof auto_reserve === "boolean") await setAutoReserve(pool, userID, auto_reserve);
+    if (typeof force_reserve === "boolean") await setForceReserve(pool, userID, force_reserve);
     bot.sendMessage(userID, `اطلاعات شما با موفقیت ذخیره شد\n/start`);
     res.json({ days: normalizeArray(rows?.days), food_priority: normalizeArray(rows?.food_priority), user: !!rows });
   } catch (error) {

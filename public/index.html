@@ -44,6 +44,14 @@
     <div class="container mt-8 max-w-3xl">
       <h1 class="text-center text-2xl mb-8 font-bold">تنظیمات رزرو خودکار</h1>
 
+      <!-- settings -->
+      <section class="bg-tg-section p-4 shadow-sm rounded-xl m-3" id="settings-section">
+        <h2 class="text-lg">⚙️ تنظیمات رزرو</h2>
+        <hr class="text-tg-secondary mt-2 mb-3" />
+        <div class="space-y-2.5" id="settings-box"></div>
+        <p class="text-xs text-tg-subtitle mt-3 leading-5">اگر رزرو اجباری روشن باشد و هیچ‌کدام از اولویت‌های شما در منوی آن روز نباشد، ربات از بقیه غذاهای همان روز امتحان می‌کند.</p>
+      </section>
+
       <!-- days -->
       <section class="bg-tg-section p-4 shadow-sm rounded-xl m-3" id="days-section">
         <h2 class="text-lg">📅 روزهای رزرو</h2>
@@ -63,13 +71,19 @@
       </section>
 
       <div id="food-modal" class="fixed inset-0 z-50 hidden bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4">
-        <div class="bg-tg-section w-full max-w-sm rounded-2xl p-4 max-h-[80vh] flex flex-col shadow-2xl">
-          <div class="flex justify-between items-center mb-4">
-            <h4 class="font-bold text-tg-text">انتخاب غذا</h4>
+        <div class="bg-tg-section w-full max-w-sm rounded-2xl p-4 max-h-[85vh] flex flex-col shadow-2xl">
+          <div class="flex justify-between items-center mb-2">
+            <div>
+              <h4 class="font-bold text-tg-text">انتخاب غذا</h4>
+              <p id="food-modal-hint" class="text-xs text-tg-subtitle mt-0.5">می‌توانید چند غذا پشت سر هم انتخاب کنید</p>
+            </div>
             <button onclick="closeFoodModal()" class="text-tg-hint p-2 hover:text-tg-destructive transition">✕</button>
           </div>
           <input type="text" id="food-search" placeholder="جستجوی غذا..." class="w-full p-2.5 border border-tg-separator rounded-xl mb-2 bg-tg-secondary text-tg-text placeholder:text-tg-hint outline-none focus:border-tg-button transition dir-rtl text-right" />
-          <div id="all-foods-container" class="overflow-y-auto flex-1 space-y-1 pr-1 hide-scrollbar"></div>
+          <div id="all-foods-container" class="overflow-y-auto flex-1 space-y-1 pr-1 hide-scrollbar min-h-0"></div>
+          <button onclick="closeFoodModal()" class="mt-3 w-full bg-tg-button text-tg-button-text py-2.5 rounded-xl font-medium text-sm active:opacity-80 transition">
+            تمام (<span id="food-modal-count">0</span> انتخاب)
+          </button>
         </div>
       </div>
 

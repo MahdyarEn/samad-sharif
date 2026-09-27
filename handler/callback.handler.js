@@ -66,7 +66,7 @@ export default async function handleCallback(bot, query, pool, userState) {
 
 ربات در زمان رزرو از این اولویت‌ ها استفاده می‌کند.
 
- نیازی به انتخاب همه ۵۶ مورد نیست؛ انتخاب چند گزینه اصلی کافی است.
+ نیازی به انتخاب همه موارد نیست؛ انتخاب چند گزینه اصلی کافی است.
 
 اگر در یک روز خاص هیچ‌کدام از اولویت‌های شما موجود نباشد، در صورت روشن بودن «رزرو اجباری غذای روز» از تنظیمات، ربات از بقیه غذاهای همان روز امتحان می‌کند.`,
         {
@@ -99,6 +99,11 @@ export default async function handleCallback(bot, query, pool, userState) {
         parse_mode: "HTML",
       });
 
+      await bot.answerCallbackQuery(query.id);
+      break;
+    }
+
+    case data.startsWith("FOOD_CAT:"): {
       await bot.answerCallbackQuery(query.id);
       break;
     }
