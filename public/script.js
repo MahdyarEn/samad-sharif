@@ -11,6 +11,7 @@ telegram.MainButton.setParams({
 
 const daysBox = document.getElementById("days-box");
 const settingsBox = document.getElementById("settings-box");
+const waitSelvesBox = document.getElementById("wait-selves-box");
 const prefListEl = document.getElementById("preference-list");
 const modalEl = document.getElementById("food-modal");
 const allFoodsContainer = document.getElementById("all-foods-container");
@@ -22,6 +23,7 @@ let userData = { foods: [] };
 let selectedDays = [];
 let autoReserve = true;
 let forceReserve = false;
+let waitSelves = [1];
 
 const DAYS = [
   { id: 0, title: "شنبه", english: "Saturday" },
@@ -29,6 +31,14 @@ const DAYS = [
   { id: 2, title: "دوشنبه", english: "Monday" },
   { id: 3, title: "سه‌شنبه", english: "Tuesday" },
   { id: 4, title: "چهارشنبه", english: "Wednesday" },
+];
+
+const SAMAD_SELVES = [
+  { id: 1, title: "سلف مرکزی / کاله" },
+  { id: 22, title: "فست‌فود شریف" },
+  { id: 23, title: "کلین‌فود" },
+  { id: 24, title: "کلانا" },
+  { id: 25, title: "یونی‌فود" },
 ];
 
 const FOOD_CATEGORIES = [
@@ -138,6 +148,7 @@ const ALL_FOODS = [
   { id: 82, title: "کلاب مرغ‌چیلی‌دبل (کلانا)" },
   { id: 83, title: "کلاب مرغ‌مخصوص‌دبل (کلانا)" },
   { id: 84, title: "لازانیا (کلین‌فود)" },
+  { id: 85, title: "خوراک شنیتسل وکتلت" },
 ];
 
 // =======================================
@@ -171,6 +182,7 @@ const saveData = async () => {
         foods: userData.foods,
         auto_reserve: autoReserve,
         force_reserve: forceReserve,
+        wait_selves: waitSelves.length ? waitSelves : [1],
       }),
     });
     if (response.status === 200) {
@@ -236,6 +248,38 @@ function renderSettings() {
       markAsChanged();
     });
     settingsBox.appendChild(label);
+  });
+}
+
+function renderWaitSelves() {
+  if (!waitSelvesBox) return;
+  waitSelvesBox.innerHTML = "";
+  SAMAD_SELVES.forEach((self) => {
+    const isSelected = waitSelves.includes(self.id);
+    const label = document.createElement("label");
+    label.className = `bg-tg-secondary w-full p-2.5 flex items-center gap-2 cursor-pointer rounded-lg border border-transparent shadow-sm select-none transition-all ${isSelected ? "active" : ""}`;
+    label.innerHTML = `
+      <input type="checkbox" class="w-4 h-4 accent-tg-button" ${isSelected ? "checked" : ""} />
+      <span class="text-sm font-medium text-tg-text">${self.title}</span>
+    `;
+    const input = label.querySelector("input");
+    input.addEventListener("change", (e) => {
+      if (e.target.checked) {
+        if (!waitSelves.includes(self.id)) waitSelves.push(self.id);
+        label.classList.add("active");
+      } else {
+        waitSelves = waitSelves.filter((id) => id !== self.id);
+        label.classList.remove("active");
+        if (waitSelves.length === 0) {
+          waitSelves = [1];
+          renderWaitSelves();
+          markAsChanged();
+          return;
+        }
+      }
+      markAsChanged();
+    });
+    waitSelvesBox.appendChild(label);
   });
 }
 
@@ -405,6 +449,7 @@ function setError(err) {
   document.querySelector("#food-section")?.remove();
   document.querySelector("#days-section")?.remove();
   document.querySelector("#settings-section")?.remove();
+  document.querySelector("#wait-selves-section")?.remove();
   document.querySelector("#food-modal")?.remove();
 }
 
@@ -416,6 +461,7 @@ async function initApp() {
   daysBox.innerHTML = '<div class="col-span-2 text-center text-tg-hint py-2 text-sm">در حال بارگذاری...</div>';
   prefListEl.innerHTML = '<div class="text-center text-tg-hint py-2 text-sm">در حال بارگذاری...</div>';
   if (settingsBox) settingsBox.innerHTML = '<div class="text-center text-tg-hint py-2 text-sm">در حال بارگذاری...</div>';
+  if (waitSelvesBox) waitSelvesBox.innerHTML = '<div class="col-span-2 text-center text-tg-hint py-2 text-sm">در حال بارگذاری...</div>';
   apiData = await getUserData();
 
   if (apiData) {
@@ -426,6 +472,7 @@ async function initApp() {
       if (apiData?.days) selectedDays = apiData.days;
       autoReserve = apiData?.auto_reserve !== false;
       forceReserve = !!apiData?.force_reserve;
+      waitSelves = Array.isArray(apiData?.wait_selves) && apiData.wait_selves.length ? apiData.wait_selves.map(Number) : [1];
       document.querySelector("#error").remove();
     }
   } else {
@@ -433,6 +480,7 @@ async function initApp() {
   }
 
   renderSettings();
+  renderWaitSelves();
   renderDays();
   renderPreferences();
 }

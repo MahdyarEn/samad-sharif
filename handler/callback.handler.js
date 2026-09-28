@@ -1,5 +1,5 @@
-import { ALLOWED_USERS, backKeyboard, buildAccountKeyboard, buildDaysKeyboard, buildDaysText, buildFoodKeyboard, buildHomeKeyboard, buildPreferenceText, buildSettingsKeyboard, buildSettingsText, DAYS, FOODS, normalizeArray } from "../utils/index.js";
-import { getUser, logoutUser, saveDays, savefoodPriority, saveSession, setAutoReserve, setForceReserve } from "../db/index.js";
+import { getUser, logoutUser, saveDays, savefoodPriority, saveSession, setAutoReserve, setForceReserve, setWaitSelves } from "../db/index.js";
+import { ALLOWED_USERS, backKeyboard, buildAccountKeyboard, buildDaysKeyboard, buildDaysText, buildFoodKeyboard, buildHomeKeyboard, buildPreferenceText, buildSettingsKeyboard, buildSettingsText, DAYS, FOODS, normalizeArray, normalizeWaitSelves, SAMAD_SELVES } from "../utils/index.js";
 import { fetchUserProfile, loginUser } from "../api/services.js";
 
 export default async function handleCallback(bot, query, pool, userState) {
@@ -50,7 +50,11 @@ export default async function handleCallback(bot, query, pool, userState) {
         state = {
           foods: normalizeArray(user?.food_priority),
           days: [],
+          foodCategory: null,
         };
+        userState.set(fromId, state);
+      } else {
+        state.foodCategory = null;
         userState.set(fromId, state);
       }
 
@@ -64,7 +68,7 @@ export default async function handleCallback(bot, query, pool, userState) {
         fromId,
         `<tg-emoji emoji-id="5469735272017043817">👈</tg-emoji> لطفا غذاهای موردعلاقه خود را به ترتیب اولویت انتخاب کنید.
 
-ربات در زمان رزرو از این اولویت‌ ها استفاده می‌کند.
+ابتدا یک دسته را باز کنید، غذاها را انتخاب کنید، بعد می‌توانید به دسته‌های دیگر بروید.
 
  نیازی به انتخاب همه موارد نیست؛ انتخاب چند گزینه اصلی کافی است.
 
@@ -103,7 +107,29 @@ export default async function handleCallback(bot, query, pool, userState) {
       break;
     }
 
+    case data === "FOOD_CAT_HOME": {
+      currentState.foodCategory = null;
+      userState.set(fromId, currentState);
+      await bot.editMessageText(buildPreferenceText(fromId, FOODS, userState), {
+        chat_id: fromId,
+        message_id: messageId,
+        reply_markup: buildFoodKeyboard(fromId, FOODS, userState),
+        parse_mode: "HTML",
+      });
+      await bot.answerCallbackQuery(query.id);
+      break;
+    }
+
     case data.startsWith("FOOD_CAT:"): {
+      const catId = data.split(":")[1];
+      currentState.foodCategory = catId;
+      userState.set(fromId, currentState);
+      await bot.editMessageText(buildPreferenceText(fromId, FOODS, userState), {
+        chat_id: fromId,
+        message_id: messageId,
+        reply_markup: buildFoodKeyboard(fromId, FOODS, userState),
+        parse_mode: "HTML",
+      });
       await bot.answerCallbackQuery(query.id);
       break;
     }
@@ -254,6 +280,37 @@ export default async function handleCallback(bot, query, pool, userState) {
       });
       await bot.answerCallbackQuery(query.id, {
         text: next ? "رزرو اجباری روشن شد ✅" : "رزرو اجباری خاموش شد ❌",
+      });
+      break;
+    }
+
+    case data.startsWith("SETTINGS_TOGGLE_SELF:"): {
+      const selfId = Number(data.split(":")[1]);
+      if (!SAMAD_SELVES.some((s) => s.id === selfId)) {
+        await bot.answerCallbackQuery(query.id);
+        break;
+      }
+      const user = await getUser(fromId, pool);
+      let wait = normalizeWaitSelves(user?.wait_selves);
+      if (wait.includes(selfId)) {
+        wait = wait.filter((id) => id !== selfId);
+      } else {
+        wait = [...wait, selfId];
+      }
+      wait = normalizeWaitSelves(wait);
+      await setWaitSelves(pool, fromId, wait);
+      const updated = await getUser(fromId, pool);
+
+      await bot.editMessageText(buildSettingsText(updated), {
+        chat_id: fromId,
+        message_id: messageId,
+        reply_markup: buildSettingsKeyboard(updated),
+        parse_mode: "HTML",
+      });
+      const selfTitle = SAMAD_SELVES.find((s) => s.id === selfId)?.title || String(selfId);
+      const nowOn = normalizeWaitSelves(updated?.wait_selves).includes(selfId);
+      await bot.answerCallbackQuery(query.id, {
+        text: nowOn ? `${selfTitle} اضافه شد ✅` : `${selfTitle} برداشته شد`,
       });
       break;
     }
