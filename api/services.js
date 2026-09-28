@@ -21,8 +21,8 @@ export async function loginUser(username, password) {
     .then(({ data }) => data);
 }
 
-export async function getSelfWeekPrograms(token, weekStartDate) {
-  return api.get(`/rest/reservations/programs/v2?selfId=1&weekStartDate=${weekStartDate}`, {
+export async function getSelfWeekPrograms(token, weekStartDate, selfId = 1) {
+  return api.get(`/rest/reservations/programs/v2?selfId=${selfId}&weekStartDate=${weekStartDate}`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },

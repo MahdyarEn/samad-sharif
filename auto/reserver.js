@@ -1,6 +1,16 @@
 import { getSelfWeekPrograms, loginUser, reserveFood } from "../api/services.js";
 import { clearReserveError, logoutUser, markReserveError, saveSession, setUserLastCheckedProgram } from "../db/index.js";
-import { buildHomeKeyboard, normalizeArray, normalizeFoodName, sleep } from "../utils/index.js";
+import {
+  areSelvesReady,
+  buildHomeKeyboard,
+  flattenWeekPrograms,
+  getSelfIdsForFood,
+  normalizeArray,
+  normalizeFoodName,
+  normalizeWaitSelves,
+  SAMAD_SELVES,
+  sleep,
+} from "../utils/index.js";
 
 const CONCURRENCY = 5;
 
@@ -11,8 +21,12 @@ function isAlreadyReservedError(messageFa = "") {
   );
 }
 
+function isInvalidToken(data) {
+  return data?.error_description == "Invalid access token";
+}
+
 async function tryReserveProgram(user, program, day, bot) {
-  console.log(`[RESERVE] try user=${user.id} day=${day.title} food=${program.foodName}`);
+  console.log(`[RESERVE] try user=${user.id} day=${day.title} food=${program.foodName} selfId=${program.selfId ?? "?"}`);
   const res = await reserveFood(user, program);
   console.log(res);
 
@@ -36,6 +50,22 @@ async function tryReserveProgram(user, program, day, bot) {
   return { done: true, success: true };
 }
 
+async function fetchProgramsBySelf(token, weekStartDate) {
+  const bySelf = {};
+  for (const self of SAMAD_SELVES) {
+    const res = await getSelfWeekPrograms(token, weekStartDate, self.id);
+    if (isInvalidToken(res?.data)) {
+      const err = new Error("Invalid access token");
+      err.code = "INVALID_TOKEN";
+      throw err;
+    }
+    bySelf[self.id] = flattenWeekPrograms(res?.data)
+      .filter((p) => p.hideInPanel === false)
+      .map((p) => ({ ...p, selfId: self.id }));
+  }
+  return bySelf;
+}
+
 async function reserveForUser(user, weekStartDate, pool, bot) {
   if (!user?.username) return;
 
@@ -43,16 +73,22 @@ async function reserveForUser(user, weekStartDate, pool, bot) {
   let touchedAnyDay = false;
 
   try {
-    let apiResult = await getSelfWeekPrograms(user?.access_token, weekStartDate);
-    if (apiResult?.data?.error_description == "Invalid access token") {
+    let bySelf;
+    try {
+      bySelf = await fetchProgramsBySelf(user?.access_token, weekStartDate);
+    } catch (e) {
+      if (e.code !== "INVALID_TOKEN") throw e;
       const resalt = await loginUser(user.username, user.password);
       if (resalt?.access_token) {
         await saveSession(pool, user.id, user.username, user.password, resalt);
         user.access_token = resalt.access_token;
+        bySelf = await fetchProgramsBySelf(resalt.access_token, weekStartDate);
+      } else {
+        throw e;
       }
-      apiResult = await getSelfWeekPrograms(resalt?.access_token, weekStartDate);
     }
-    if (apiResult?.data?.error_description == "Invalid access token") {
+
+    if (!bySelf) {
       await logoutUser(pool, user.id);
       bot.sendMessage(user.id, `⭕️ رزرو غذا در سماد با خطا مواجد شد\nشما رمز اکانت خود را عوض کردید، لطفا مجددا در ربات لاگین کنید`, {
         reply_markup: buildHomeKeyboard(false),
@@ -60,12 +96,13 @@ async function reserveForUser(user, weekStartDate, pool, bot) {
       });
       return;
     }
-    if (!apiResult?.data?.payload?.selfWeekPrograms || !Array.isArray(apiResult.data.payload.selfWeekPrograms)) {
+
+    const allPrograms = Object.values(bySelf).flat();
+    if (allPrograms.length === 0) {
+      console.log(`[RESERVE] user=${user.id} no visible programs across selves, skip`);
       return;
     }
-
-    const allPrograms = apiResult.data.payload.selfWeekPrograms.flat().filter(Boolean);
-    console.log(`AutoReserve user ${user.id}`);
+    console.log(`AutoReserve user ${user.id} programs=${allPrograms.length}`);
 
     const uDays = normalizeArray(user?.days);
     const uFoods = normalizeArray(user?.food_priority);
@@ -74,8 +111,8 @@ async function reserveForUser(user, weekStartDate, pool, bot) {
     for (let dayIndex = 0; dayIndex < uDays.length; dayIndex++) {
       const day = uDays[dayIndex];
       const isLastDay = dayIndex === uDays.length - 1;
-      const dayPrograms = allPrograms.filter((p) => p.dayTranslated === day.english);
-      if (dayPrograms.length === 0) {
+      const dayProgramsAll = allPrograms.filter((p) => p.dayTranslated === day.english);
+      if (dayProgramsAll.length === 0) {
         console.log(`[RESERVE] user=${user.id} day=${day.title} no programs, skip`);
         continue;
       }
@@ -87,7 +124,13 @@ async function reserveForUser(user, weekStartDate, pool, bot) {
       const triedProgramIds = new Set();
 
       for (const food of uFoods) {
-        const program = dayPrograms.find((p) => normalizeFoodName(p?.foodName) === normalizeFoodName(food?.title));
+        const selfIds = getSelfIdsForFood(food?.title);
+        let program = null;
+        for (const selfId of selfIds) {
+          const dayPrograms = (bySelf[selfId] || []).filter((p) => p.dayTranslated === day.english);
+          program = dayPrograms.find((p) => normalizeFoodName(p?.foodName) === normalizeFoodName(food?.title));
+          if (program) break;
+        }
         if (!program) continue;
 
         triedAnyPriority = true;
@@ -112,7 +155,7 @@ async function reserveForUser(user, weekStartDate, pool, bot) {
       }
 
       if (!dayDone && forceReserve) {
-        const fallbackPrograms = dayPrograms.filter((p) => !triedProgramIds.has(p.programId));
+        const fallbackPrograms = dayProgramsAll.filter((p) => !triedProgramIds.has(p.programId));
         for (let i = fallbackPrograms.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
           [fallbackPrograms[i], fallbackPrograms[j]] = [fallbackPrograms[j], fallbackPrograms[i]];
@@ -159,6 +202,14 @@ async function reserveForUser(user, weekStartDate, pool, bot) {
       await setUserLastCheckedProgram(user.id, weekStartDate, pool);
     }
   } catch (e) {
+    if (e.code === "INVALID_TOKEN") {
+      await logoutUser(pool, user.id);
+      bot.sendMessage(user.id, `⭕️ رزرو غذا در سماد با خطا مواجد شد\nشما رمز اکانت خود را عوض کردید، لطفا مجددا در ربات لاگین کنید`, {
+        reply_markup: buildHomeKeyboard(false),
+        parse_mode: "HTML",
+      });
+      return;
+    }
     hasError = true;
     console.error(`[AUTO] ERROR user=${user.id}`, e);
   }
@@ -170,14 +221,33 @@ async function reserveForUser(user, weekStartDate, pool, bot) {
   }
 }
 
-export async function reserveForUsers(users, weekStartDate, pool, bot) {
+export async function reserveForUsers(users, weekStartDate, pool, bot, adminToken) {
   const list = users.filter((u) => u?.username);
   console.log(`[RESERVE] start users=${list.length} concurrency=${CONCURRENCY}`);
+
+  const readyCache = new Map();
+  async function userSelvesReady(waitSelves) {
+    const ids = normalizeWaitSelves(waitSelves);
+    const key = ids.slice().sort((a, b) => a - b).join(",");
+    if (readyCache.has(key)) return readyCache.get(key);
+    const ok = adminToken ? await areSelvesReady(adminToken, weekStartDate, ids) : true;
+    readyCache.set(key, ok);
+    return ok;
+  }
 
   for (let i = 0; i < list.length; i += CONCURRENCY) {
     const chunk = list.slice(i, i + CONCURRENCY);
     console.log(`[RESERVE] batch ${Math.floor(i / CONCURRENCY) + 1} size=${chunk.length} ids=${chunk.map((u) => u.id).join(",")}`);
-    await Promise.all(chunk.map((user) => reserveForUser(user, weekStartDate, pool, bot)));
+    await Promise.all(
+      chunk.map(async (user) => {
+        const ready = await userSelvesReady(user.wait_selves);
+        if (!ready) {
+          console.log(`[RESERVE] user=${user.id} wait_selves not ready [${normalizeWaitSelves(user.wait_selves).join(",")}], skip`);
+          return;
+        }
+        return reserveForUser(user, weekStartDate, pool, bot);
+      }),
+    );
     if (i + CONCURRENCY < list.length) {
       await sleep(300);
     }

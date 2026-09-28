@@ -67,6 +67,14 @@ WHERE users.auto_reserve = 1
     food_priority: typeof u.food_priority === "string" ? JSON.parse(u.food_priority || "[]") : u.food_priority || [],
     days: typeof u.days === "string" ? JSON.parse(u.days || "[]") : u.days || [],
     force_reserve: Number(u.force_reserve) === 1,
+    wait_selves: (() => {
+      try {
+        const v = typeof u.wait_selves === "string" ? JSON.parse(u.wait_selves || "[1]") : u.wait_selves;
+        return Array.isArray(v) && v.length ? v.map(Number) : [1];
+      } catch {
+        return [1];
+      }
+    })(),
   }));
 }
 
@@ -76,6 +84,13 @@ export async function setAutoReserve(pool, userId, enabled) {
 
 export async function setForceReserve(pool, userId, enabled) {
   await pool.query("UPDATE users SET force_reserve = ? WHERE id = ?", [enabled ? 1 : 0, userId]);
+}
+
+export async function setWaitSelves(pool, userId, selfIds) {
+  let ids = Array.isArray(selfIds) ? selfIds.map(Number).filter((n) => [1, 22, 23, 24, 25].includes(n)) : [];
+  ids = [...new Set(ids)];
+  if (!ids.length) ids = [1];
+  await pool.query("UPDATE users SET wait_selves = ? WHERE id = ?", [JSON.stringify(ids), userId]);
 }
 
 export async function getLastReservedWeek(pool) {
@@ -88,6 +103,33 @@ export async function setLastReservedWeek(pool, weekStartDate) {
     `REPLACE INTO system_state (\`key\`, value)
      VALUES ('last_reserved_week', ?)`,
     [weekStartDate]
+  );
+}
+
+function sameWeekKey(a, b) {
+  if (!a || !b) return false;
+  return String(a).slice(0, 10) === String(b).slice(0, 10);
+}
+
+export async function getChannelNotifiedSelves(pool, weekStartDate) {
+  const [rows] = await pool.query(`SELECT value FROM system_state WHERE \`key\`='channel_notified_selves'`);
+  const raw = rows[0]?.value;
+  if (!raw) return [];
+  try {
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    if (!sameWeekKey(parsed?.week, weekStartDate)) return [];
+    return Array.isArray(parsed?.ids) ? parsed.ids.map(Number).filter((n) => Number.isFinite(n)) : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function setChannelNotifiedSelves(pool, weekStartDate, ids) {
+  const unique = [...new Set((ids || []).map(Number).filter((n) => Number.isFinite(n)))];
+  await pool.query(
+    `REPLACE INTO system_state (\`key\`, value)
+     VALUES ('channel_notified_selves', ?)`,
+    [JSON.stringify({ week: weekStartDate, ids: unique })]
   );
 }
 

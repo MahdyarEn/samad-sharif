@@ -1,4 +1,4 @@
-import { fetchUserProfile, loginUser } from "../api/services.js";
+import { fetchUserProfile, getSelfWeekPrograms, loginUser } from "../api/services.js";
 import config from "../config.js";
 import { getAdminAccessToken, setAdminAccessToken } from "../db/index.js";
 import crypto from "crypto";
@@ -133,6 +133,7 @@ export const FOODS = [
   { id: 82, title: "کلاب مرغ‌چیلی‌دبل (کلانا)" },
   { id: 83, title: "کلاب مرغ‌مخصوص‌دبل (کلانا)" },
   { id: 84, title: "لازانیا (کلین‌فود)" },
+  { id: 85, title: "خوراک شنیتسل وکتلت" },
 ];
 
 export function normalizeFoodName(name) {
@@ -151,6 +152,15 @@ export const FOOD_CATEGORIES = [
   { id: "clean", title: "کلین‌فود", icon_custom_emoji_id: "5328065681269203890" },
 ];
 
+// selfIds after vendors got split in Samad
+export const SAMAD_SELVES = [
+  { id: 1, key: "main", title: "سلف مرکزی / کاله", categoryIds: ["self", "kaleh"] },
+  { id: 22, key: "sharifi", title: "فست‌فود شریف", categoryIds: ["sharifi"] },
+  { id: 23, key: "clean", title: "کلین‌فود", categoryIds: ["clean"] },
+  { id: 24, key: "kalana", title: "کلانا", categoryIds: ["kalana"] },
+  { id: 25, key: "unifood", title: "یونی‌فود", categoryIds: ["unifood"] },
+];
+
 export function getFoodCategory(title = "") {
   const t = normalizeFoodName(title);
   if (/یونیفود|یونی\s*فود/.test(t)) return FOOD_CATEGORIES.find((c) => c.id === "unifood");
@@ -161,53 +171,92 @@ export function getFoodCategory(title = "") {
   return FOOD_CATEGORIES.find((c) => c.id === "self");
 }
 
+export function getSelfIdsForFood(title = "") {
+  const catId = getFoodCategory(title)?.id;
+  const self = SAMAD_SELVES.find((s) => s.categoryIds.includes(catId));
+  return [self?.id ?? 1];
+}
+
 export function buildPreferenceText(userId, foods, userFoodState) {
   const state = userFoodState.get(userId);
   const selected = Array.isArray(state?.foods) ? state.foods : [];
+  const catId = state?.foodCategory || null;
+  const cat = catId ? FOOD_CATEGORIES.find((c) => c.id === catId) : null;
 
   if (selected.length === 0) {
-    return "🍽 لطفا به ترتیب علاقه، غذاهای موردنظر خودتون رو انتخاب کنید";
+    if (cat) {
+      return `🍽 دسته «${cat.title}»\n\nهنوز غذایی انتخاب نکرده‌اید. از لیست زیر انتخاب کنید.`;
+    }
+    return "🍽 لطفا به ترتیب علاقه، غذاهای موردنظر خودتون رو انتخاب کنید\n\nاول یک دسته را انتخاب کنید:";
   }
 
   const lines = selected.map((food, index) => {
     return `${index + 1}. ${food.title}`;
   });
 
-  return `<tg-emoji emoji-id="5427009714745517609">✅</tg-emoji> انتخاب فعلی شما (به ترتیب اولویت):\n\n${lines.join("\n")}\n\n<tg-emoji emoji-id="5470177992950946662">👇</tg-emoji> برای تغییر، روی دکمه‌ها بزنید`;
+  const catHint = cat
+    ? `\n\n📂 در حال مشاهده: <b>${cat.title}</b>`
+    : `\n\nبرای ادامه، یک دسته را انتخاب کنید.`;
+
+  return `<tg-emoji emoji-id="5427009714745517609">✅</tg-emoji> انتخاب فعلی شما (به ترتیب اولویت):\n\n${lines.join("\n")}${catHint}`;
 }
 
 export function buildFoodKeyboard(userId, foods, userFoodState) {
   const state = userFoodState.get(userId);
   const selected = Array.isArray(state?.foods) ? state.foods : [];
+  const activeCatId = state?.foodCategory || null;
   const keyboard = [];
 
-  for (const cat of FOOD_CATEGORIES) {
-    const items = foods.filter((f) => getFoodCategory(f.title).id === cat.id);
-    if (items.length === 0) continue;
+  if (!activeCatId) {
+    for (let i = 0; i < FOOD_CATEGORIES.length; i += 2) {
+      const row = [];
+      for (const cat of FOOD_CATEGORIES.slice(i, i + 2)) {
+        const count = selected.filter((f) => getFoodCategory(f.title).id === cat.id).length;
+        const total = foods.filter((f) => getFoodCategory(f.title).id === cat.id).length;
+        if (total === 0) continue;
+        row.push({
+          text: count > 0 ? `${cat.title} (${count})` : cat.title,
+          callback_data: `FOOD_CAT:${cat.id}`,
+          icon_custom_emoji_id: cat.icon_custom_emoji_id,
+          style: "primary",
+        });
+      }
+      if (row.length) keyboard.push(row);
+    }
 
+    keyboard.push([
+      { text: "بازگشت", callback_data: "BACK", icon_custom_emoji_id: "6039539366177541657" },
+      { text: "ثبت نهایی", callback_data: "FOOD_CONFIRM", icon_custom_emoji_id: "5774022692642492953" },
+    ]);
+    return { inline_keyboard: keyboard };
+  }
+
+  const cat = FOOD_CATEGORIES.find((c) => c.id === activeCatId);
+  if (cat) {
     keyboard.push([
       {
         text: cat.title,
-        callback_data: `FOOD_CAT:${cat.id}`,
+        callback_data: "FOOD_CAT_HOME",
         icon_custom_emoji_id: cat.icon_custom_emoji_id,
         style: "primary",
       },
     ]);
+  }
 
-    for (const food of items) {
-      const index = selected.findIndex((f) => f.id === food.id);
-      const isSelected = index !== -1;
-      const btn = {
-        text: isSelected ? `${index + 1}. ${food.title}` : food.title,
-        callback_data: `FOOD_TOGGLE:${food.id}`,
-      };
-      if (isSelected) btn.style = "success";
-      keyboard.push([btn]);
-    }
+  const items = foods.filter((f) => getFoodCategory(f.title).id === activeCatId);
+  for (const food of items) {
+    const index = selected.findIndex((f) => f.id === food.id);
+    const isSelected = index !== -1;
+    const btn = {
+      text: isSelected ? `${index + 1}. ${food.title}` : food.title,
+      callback_data: `FOOD_TOGGLE:${food.id}`,
+    };
+    if (isSelected) btn.style = "success";
+    keyboard.push([btn]);
   }
 
   keyboard.push([
-    { text: "بازگشت", callback_data: "BACK", icon_custom_emoji_id: "6039539366177541657" },
+    { text: "دسته‌ها", callback_data: "FOOD_CAT_HOME", icon_custom_emoji_id: "6039539366177541657" },
     { text: "ثبت نهایی", callback_data: "FOOD_CONFIRM", icon_custom_emoji_id: "5774022692642492953" },
   ]);
   return { inline_keyboard: keyboard };
@@ -228,7 +277,6 @@ export function buildDaysKeyboard(userId, days, userState) {
     const isSelected = selectedDays.some((d) => d.id === day.id);
     return [
       {
-        // text: `${isSelected ? "✅ " : "❌ "}${day.title}`,
         text: `${day.title}`,
         icon_custom_emoji_id: `${isSelected ? "5774022692642492953" : "5774077015388852135"}`,
         callback_data: `DAY_TOGGLE:${day.id}`,
@@ -263,6 +311,45 @@ export function getNextSaturday() {
   const diff = (6 - day + 7) % 7 || 7;
   const saturday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + diff));
   return `${saturday.getUTCFullYear()}-${String(saturday.getUTCMonth() + 1).padStart(2, "0")}-${String(saturday.getUTCDate()).padStart(2, "0")}+00:00:00`;
+}
+
+export function flattenWeekPrograms(apiData) {
+  const list = apiData?.payload?.selfWeekPrograms;
+  if (!Array.isArray(list)) return [];
+  return list.flat().filter(Boolean);
+}
+
+// hideInPanel=true means menu is not shown in Samad yet
+export function isWeekMenuReady(apiData) {
+  const visible = flattenWeekPrograms(apiData).filter((p) => p?.hideInPanel === false);
+  if (visible.length === 0) return false;
+  const requiredDays = ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday"];
+  return requiredDays.every((day) => visible.some((p) => p.dayTranslated === day));
+}
+
+const ALLOWED_WAIT_SELF_IDS = new Set(SAMAD_SELVES.map((s) => s.id));
+
+export function normalizeWaitSelves(value) {
+  let arr = value;
+  if (typeof arr === "string") {
+    try {
+      arr = JSON.parse(arr);
+    } catch {
+      arr = [];
+    }
+  }
+  if (!Array.isArray(arr)) arr = [];
+  const ids = [...new Set(arr.map((n) => Number(n)).filter((n) => ALLOWED_WAIT_SELF_IDS.has(n)))];
+  return ids.length ? ids : [1];
+}
+
+export async function areSelvesReady(token, weekStartDate, selfIds) {
+  const ids = normalizeWaitSelves(selfIds);
+  for (const selfId of ids) {
+    const res = await getSelfWeekPrograms(token, weekStartDate, selfId);
+    if (res?.status !== 200 || !isWeekMenuReady(res.data)) return false;
+  }
+  return true;
 }
 
 export const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -303,12 +390,21 @@ export function buildSettingsText(user) {
   const autoOn = Number(user?.auto_reserve) === 1;
   const forceOn = Number(user?.force_reserve) === 1;
   const lastChecked = formatLastCheckedProgram(user?.last_checked_program);
+  const waitSelves = normalizeWaitSelves(user?.wait_selves);
+  const waitLines = SAMAD_SELVES.filter((s) => waitSelves.includes(s.id))
+    .map((s) => `• ${s.title}`)
+    .join("\n");
 
   return `<tg-emoji emoji-id="5818705028424141605">⚙️</tg-emoji> <b>تنظیمات رزرو</b>
 
 <tg-emoji emoji-id="5850693253355017860">#️⃣</tg-emoji> رزرو خودکار: <b>${autoOn ? `روشن <tg-emoji emoji-id="5774022692642492953">✅</tg-emoji>` : `خاموش <tg-emoji emoji-id="5774077015388852135">❌</tg-emoji>`}</b>
 <tg-emoji emoji-id="5850693253355017860">#️⃣</tg-emoji> رزرو اجباری غذای روز: <b>${forceOn ? `روشن <tg-emoji emoji-id="5774022692642492953">✅</tg-emoji>` : `خاموش <tg-emoji emoji-id="5774077015388852135">❌</tg-emoji>`}</b>
 <tg-emoji emoji-id="5850693253355017860">#️⃣</tg-emoji> آخرین هفته بررسی‌شده: <code>${lastChecked}</code>
+
+<tg-emoji emoji-id="5431897022456145283">📅</tg-emoji> <b>شروع رزرو پس از آماده‌شدن:</b>
+${waitLines || "• سلف مرکزی / کاله"}
+
+<tg-emoji emoji-id="5314346928660554905">⚠️</tg-emoji> رزرو فقط وقتی شروع می‌شود که همهٔ سلف‌های انتخابی در سامانه نمایش داده شده باشند. اگر سلفی آن هفته برنامه نداشته باشد، رزرو عقب می‌افتد.
 
 <tg-emoji emoji-id="5314346928660554905">⚠️</tg-emoji> اگر رزرو اجباری روشن باشد و هیچ‌کدام از اولویت‌های شما در منوی آن روز نباشد (یا همه پر شده باشند)، ربات از بقیه غذاهای همان روز امتحان می‌کند تا یکی موفق شود.
 
@@ -318,6 +414,18 @@ export function buildSettingsText(user) {
 export function buildSettingsKeyboard(user) {
   const autoOn = Number(user?.auto_reserve) === 1;
   const forceOn = Number(user?.force_reserve) === 1;
+  const waitSelves = normalizeWaitSelves(user?.wait_selves);
+
+  const selfRows = SAMAD_SELVES.map((self) => {
+    const on = waitSelves.includes(self.id);
+    const btn = {
+      text: self.title,
+      callback_data: `SETTINGS_TOGGLE_SELF:${self.id}`,
+      icon_custom_emoji_id: on ? "5774022692642492953" : "5774077015388852135",
+    };
+    if (on) btn.style = "success";
+    return [btn];
+  });
 
   return {
     inline_keyboard: [
@@ -335,6 +443,7 @@ export function buildSettingsKeyboard(user) {
           icon_custom_emoji_id: `${forceOn ? "5774022692642492953" : "5774077015388852135"}`,
         },
       ],
+      ...selfRows,
       [{ text: "بازگشت", callback_data: "BACK", icon_custom_emoji_id: "6039539366177541657" }],
     ],
   };

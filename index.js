@@ -4,8 +4,8 @@ import config from "./config.js";
 import handleCallback from "./handler/callback.handler.js";
 import handleMessage from "./handler/message.handler.js";
 import { startAutoReserve } from "./auto/scheduler.js";
-import { normalizeArray, verifyTelegramWebAppData } from "./utils/index.js";
-import { saveDays, savefoodPriority, setAutoReserve, setForceReserve } from "./db/index.js";
+import { normalizeArray, normalizeWaitSelves, verifyTelegramWebAppData } from "./utils/index.js";
+import { saveDays, savefoodPriority, setAutoReserve, setForceReserve, setWaitSelves } from "./db/index.js";
 import express from "express";
 import cors from "cors";
 
@@ -51,18 +51,13 @@ async function initDb() {
 
         auto_reserve TINYINT(1) DEFAULT 1,
         force_reserve TINYINT(1) DEFAULT 0,
+        wait_selves JSON DEFAULT NULL,
         last_checked_program DATETIME DEFAULT NULL,
         last_error_at DATETIME DEFAULT NULL,
 
         PRIMARY KEY (id)
       ) ENGINE=InnoDB;
     `);
-
-    try {
-      await pool.query(`ALTER TABLE users ADD COLUMN force_reserve TINYINT(1) DEFAULT 0`);
-    } catch (e) {
-      // column already exists
-    }
 
     console.log("✅ MySQL connected");
   } catch (err) {
@@ -95,12 +90,16 @@ app.post("/api/get-data", async (req, res) => {
     }
     const userID = validate.id;
 
-    const [[rows]] = await pool.query("SELECT days, food_priority, username, auto_reserve, force_reserve FROM users WHERE id = ?", [userID]);
+    const [[rows]] = await pool.query(
+      "SELECT days, food_priority, username, auto_reserve, force_reserve, wait_selves FROM users WHERE id = ?",
+      [userID],
+    );
     res.json({
       days: normalizeArray(rows?.days),
       food_priority: normalizeArray(rows?.food_priority),
       auto_reserve: Number(rows?.auto_reserve) === 1,
       force_reserve: Number(rows?.force_reserve) === 1,
+      wait_selves: normalizeWaitSelves(rows?.wait_selves),
       user: !!rows,
       isLogin: !!rows?.username,
     });
@@ -119,11 +118,12 @@ app.post("/api/save-data", async (req, res) => {
     }
     const userID = validate.id;
     const [[rows]] = await pool.query("SELECT days,food_priority FROM users WHERE id = ?", [userID]);
-    const { foods, days, auto_reserve, force_reserve } = req?.body;
+    const { foods, days, auto_reserve, force_reserve, wait_selves } = req?.body;
     await savefoodPriority(pool, userID, foods);
     await saveDays(pool, userID, days);
     if (typeof auto_reserve === "boolean") await setAutoReserve(pool, userID, auto_reserve);
     if (typeof force_reserve === "boolean") await setForceReserve(pool, userID, force_reserve);
+    if (wait_selves !== undefined) await setWaitSelves(pool, userID, wait_selves);
     bot.sendMessage(userID, `اطلاعات شما با موفقیت ذخیره شد\n/start`);
     res.json({ days: normalizeArray(rows?.days), food_priority: normalizeArray(rows?.food_priority), user: !!rows });
   } catch (error) {
