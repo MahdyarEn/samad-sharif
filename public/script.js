@@ -63,93 +63,7 @@ function getFoodCategory(title = "") {
   return FOOD_CATEGORIES.find((c) => c.id === "self");
 }
 
-const ALL_FOODS = [
-  { id: 1, title: "چلو کباب کوبیده" },
-  { id: 2, title: "چلوکباب کوبیده (کاله)" },
-  { id: 3, title: "چلوکباب نگین دار" },
-  { id: 4, title: "چلو جوجه‌کباب" },
-  { id: 5, title: "چلو جوجه کباب (کاله)" },
-  { id: 6, title: "شنیتسل مرغ با برنج" },
-  { id: 7, title: "خوراک شنیتسل مرغ" },
-  { id: 8, title: "خوراک فیله سوخاری" },
-  { id: 9, title: "خوراک کوردن بلو" },
-  { id: 10, title: "خوراک جوجه چینی" },
-  { id: 11, title: "چلو مرغ ترش" },
-  { id: 12, title: "زرشک‌پلو با مرغ" },
-  { id: 13, title: "زرشک پلو با مرغ (کاله)" },
-  { id: 14, title: "خوراک ماکارونی با گوشت" },
-  { id: 15, title: "خوراک ماکارونی با گوشت (کاله)" },
-  { id: 16, title: "خوراک ماکارونی فرمی" },
-  { id: 17, title: "پیتزا مخلوط (کاله)" },
-  { id: 18, title: "چلو‌خورش قورمه‌سبزی" },
-  { id: 19, title: "چلوخورش قرمه سبزی (کاله)" },
-  { id: 20, title: "چلوخورش فسنجان با مرغ" },
-  { id: 21, title: "چلو‌خورش قیمه‌ سیب زمینی" },
-  { id: 22, title: "چلوخورش قیمه سیب زمینی (کاله)" },
-  { id: 23, title: "چلو‌خورش قیمه‌بادمجان" },
-  { id: 24, title: "چلو خورشت مسما بادمجان" },
-  { id: 25, title: "چلوخورشت آلو اسفناج" },
-  { id: 26, title: "چلو‌خورش کرفس" },
-  { id: 27, title: "چلو‌خورش لوبیا‌ سبز" },
-  { id: 28, title: "عدس‌پلو با گوشت" },
-  { id: 29, title: "عدس‌پلو با گوشت (کاله)" },
-  { id: 30, title: "لوبیا پلو" },
-  { id: 31, title: "لوبیاپلو با گوشت تکه (کاله)" },
-  { id: 32, title: "استامبولی پلو با گوشت" },
-  { id: 33, title: "رشته پلو با گوشت" },
-  { id: 34, title: "سبزی پلو با تن ماهی" },
-  { id: 35, title: "چلو با تن ماهی" },
-  { id: 36, title: "چلو با شامی کباب" },
-  { id: 37, title: "خوراک کتلت" },
-  { id: 38, title: "خوراک کتلت مرغ" },
-  { id: 39, title: "خوراک کوکو سیب‌زمینی" },
-  { id: 40, title: "خوراک کوکو سبزی" },
-  { id: 41, title: "خوراک میرزا قاسمی" },
-  { id: 42, title: "خوراک قارچ و مرغ" },
-  { id: 43, title: "خوراک کوفته تبریزی" },
-  { id: 44, title: "خوراک تن ماهی" },
-  { id: 45, title: "خوراک فلافل" },
-  { id: 46, title: "سینی خوراک بندری (کاله)" },
-  { id: 47, title: "سینی شنیتسل و کتلت (کاله)" },
-  { id: 48, title: "سینی فیله سوخاری و فلافل (کاله)" },
-  { id: 49, title: "سینی دونر و فلافل (کاله)" },
-  { id: 50, title: "سینی خوراک فلافل (کاله)" },
-  { id: 51, title: "سینی املت و نرگسی (کاله)" },
-  { id: 52, title: "سینی ماکارونی و ناگت (کاله)" },
-  { id: 53, title: "سینی ساندویچ و کتلت (کاله)" },
-  { id: 54, title: "سینی ساندویچ و کوکوسبزی (کاله)" },
-  { id: 55, title: "سینی پیتزا و کراکت (کاله)" },
-  { id: 56, title: "سینی پیتزا و کوکوسبزی (کاله)" },
-  { id: 57, title: "رشته پلو" },
-  { id: 58, title: "پاستاچیکن آلفردو (فست‌فود شریف)" },
-  { id: 59, title: "پاستاچیکن آلفردو (کلین‌فود)" },
-  { id: 60, title: "چلوجوجه‌کباب‌مکزیکی (فست‌فود شریف)" },
-  { id: 61, title: "چلوکباب‌کوبیده نگین‌دار (فست‌فود شریف)" },
-  { id: 62, title: "چیزبرگر کلاسیک (کاله)" },
-  { id: 63, title: "سالاد الویه مرغ (کاله)" },
-  { id: 64, title: "ساندویچ پپرونی‌مخصوص (یونی‌فود)" },
-  { id: 65, title: "ساندویچ دنر‌کباب‌گوشت (کلین‌فود)" },
-  { id: 66, title: "ساندویچ دنرکباب‌گوشت‌و‌پنیر (یونی‌فود)" },
-  { id: 67, title: "ساندویچ دنرکباب‌مرغ‌و‌پنیر (یونی‌فود)" },
-  { id: 68, title: "ساندویچ دنرکباب‌مرغ (کلین‌فود)" },
-  { id: 69, title: "ساندویچ ژامبون گوشت (کاله)" },
-  { id: 70, title: "ساندویچ ژامبون‌گوشت (یونی‌فود)" },
-  { id: 71, title: "ساندویچ ژامبون مرغ (کاله)" },
-  { id: 72, title: "ساندویچ ژامبون‌مرغ (یونی‌فود)" },
-  { id: 73, title: "ساندویچ شنیتسل‌مرغ (فست‌فود شریف)" },
-  { id: 74, title: "ساندویچ مرغ انار و گردو (کاله)" },
-  { id: 75, title: "ساندویچ مرغ پستو (کاله)" },
-  { id: 76, title: "ساندویچ مرغ‌تنوری (فست‌فود شریف)" },
-  { id: 77, title: "ساندویچ مرغ گریل (کاله)" },
-  { id: 78, title: "ساندویچ همبرگر‌ذغالی (کلین‌فود)" },
-  { id: 79, title: "کلاب ژامبون‌مرغ‌دبل (کلانا)" },
-  { id: 80, title: "کلاب سینه‌بوقلمون‌دبل (کلانا)" },
-  { id: 81, title: "کلاب فیله‌گوشت‌دبل (کلانا)" },
-  { id: 82, title: "کلاب مرغ‌چیلی‌دبل (کلانا)" },
-  { id: 83, title: "کلاب مرغ‌مخصوص‌دبل (کلانا)" },
-  { id: 84, title: "لازانیا (کلین‌فود)" },
-  { id: 85, title: "خوراک شنیتسل وکتلت" },
-];
+let ALL_FOODS = [];
 
 // =======================================
 const getUserData = async () => {
@@ -330,6 +244,8 @@ function renderPreferences() {
 
   userData.foods.forEach((food, index) => {
     const cat = getFoodCategory(food.title);
+    const price = food.price ?? ALL_FOODS.find((f) => f.id === food.id)?.price;
+    const priceLabel = price ? `${Number(price).toLocaleString("en-US")} تومان` : "";
     const li = document.createElement("li");
     li.className = "flex items-center justify-between bg-tg-secondary p-3 rounded-lg border border-tg-separator select-none group";
     li.dataset.id = food.id;
@@ -338,7 +254,14 @@ function renderPreferences() {
                 <span class="text-tg-button font-bold text-sm min-w-[1.2rem]">${index + 1}</span>
                 <div class="min-w-0">
                   <div class="text-tg-text text-sm font-medium truncate">${food.title}</div>
-                  <div class="text-[11px] text-tg-subtitle mt-0.5">${cat.title}</div>
+                  <div class="flex items-center gap-1.5 mt-0.5 min-w-0">
+                    <span class="text-[11px] text-tg-subtitle truncate">${cat.title}</span>
+                    ${
+                      priceLabel
+                        ? `<span class="text-tg-hint">·</span><span class="text-[11px] font-medium text-tg-accent tabular-nums shrink-0">${priceLabel}</span>`
+                        : ""
+                    }
+                  </div>
                 </div>
             </div>
             <div class="flex items-center gap-2 shrink-0">
@@ -427,11 +350,19 @@ function renderAllFoodsList(searchTerm = "") {
     items.forEach((food) => {
       const selectedIndex = userData.foods.findIndex((p) => p.id === food.id);
       const isSelected = selectedIndex !== -1;
+      const priceLabel = food.price ? `${Number(food.price).toLocaleString("en-US")} تومان` : "";
       const div = document.createElement("div");
-      div.className = `p-3 border border-transparent cursor-pointer transition flex justify-between items-center rounded-lg ${isSelected ? "active" : "hover:bg-tg-secondary"}`;
+      div.className = `p-3 border border-transparent cursor-pointer transition flex justify-between items-center gap-3 rounded-lg ${isSelected ? "active" : "hover:bg-tg-secondary"}`;
       div.innerHTML = `
-        <span class="text-tg-text text-sm ${isSelected ? "font-medium" : ""}">${isSelected ? `${selectedIndex + 1}. ` : ""}${food.title}</span>
-        <span class="text-tg-button text-base font-medium min-w-[1.5rem] text-center">${isSelected ? "✓" : "+"}</span>
+        <div class="min-w-0 flex-1">
+          <div class="text-tg-text text-sm ${isSelected ? "font-medium" : ""} truncate">${isSelected ? `${selectedIndex + 1}. ` : ""}${food.title}</div>
+          ${
+            priceLabel
+              ? `<div class="mt-0.5"><span class="inline-flex items-center text-[11px] font-medium text-tg-accent bg-tg-transparent px-2 py-0.5 rounded-md tabular-nums">${priceLabel}</span></div>`
+              : ""
+          }
+        </div>
+        <span class="text-tg-button text-base font-medium min-w-[1.5rem] text-center shrink-0">${isSelected ? "✓" : "+"}</span>
       `;
       div.onclick = () => window.toggleFood(food.id);
       allFoodsContainer.appendChild(div);
@@ -468,7 +399,13 @@ async function initApp() {
     if (!apiData.isLogin) {
       setError("لطفا ابتدا از طریق ربات وارد سامانه سماد شوید");
     } else {
-      if (apiData?.food_priority) userData.foods = apiData.food_priority;
+      ALL_FOODS = Array.isArray(apiData.foods) ? apiData.foods : [];
+      if (apiData?.food_priority) {
+        userData.foods = apiData.food_priority.map((f) => {
+          const base = ALL_FOODS.find((x) => x.id === f.id);
+          return base ? { ...base, ...f, price: f.price ?? base.price } : f;
+        });
+      }
       if (apiData?.days) selectedDays = apiData.days;
       autoReserve = apiData?.auto_reserve !== false;
       forceReserve = !!apiData?.force_reserve;

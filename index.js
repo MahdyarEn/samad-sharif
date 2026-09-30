@@ -4,7 +4,7 @@ import config from "./config.js";
 import handleCallback from "./handler/callback.handler.js";
 import handleMessage from "./handler/message.handler.js";
 import { startAutoReserve } from "./auto/scheduler.js";
-import { normalizeArray, normalizeWaitSelves, verifyTelegramWebAppData } from "./utils/index.js";
+import { FOODS, normalizeArray, normalizeWaitSelves, verifyTelegramWebAppData } from "./utils/index.js";
 import { saveDays, savefoodPriority, setAutoReserve, setForceReserve, setWaitSelves } from "./db/index.js";
 import express from "express";
 import cors from "cors";
@@ -100,6 +100,7 @@ app.post("/api/get-data", async (req, res) => {
       auto_reserve: Number(rows?.auto_reserve) === 1,
       force_reserve: Number(rows?.force_reserve) === 1,
       wait_selves: normalizeWaitSelves(rows?.wait_selves),
+      foods: FOODS.map(({ id, title, price }) => ({ id, title, price })),
       user: !!rows,
       isLogin: !!rows?.username,
     });

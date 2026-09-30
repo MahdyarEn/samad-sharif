@@ -91,7 +91,7 @@ export default async function handleCallback(bot, query, pool, userState) {
       if (exists) {
         currentState.foods = currentState.foods.filter((f) => f.id !== foodId);
       } else {
-        currentState.foods?.push({ id: food.id, title: food.title });
+        currentState.foods?.push({ id: food.id, title: food.title, price: food.price });
       }
 
       userState.set(fromId, currentState);
