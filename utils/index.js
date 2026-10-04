@@ -134,6 +134,19 @@ export const FOODS = [
   { id: 83, title: "کلاب مرغ‌مخصوص‌دبل (کلانا)", price: 10000 },
   { id: 84, title: "لازانیا (کلین‌فود)", price: 135000 },
   { id: 85, title: "خوراک شنیتسل وکتلت", price: 35000 },
+
+  { id: 86, title: "چلو کباب کوبیده(فست فود شریف)", price: 75000 },
+  { id: 87, title: "چلوخورش قیمه بادمجان (فست فود شریف)", price: 35000 },
+  { id: 88, title: "خوراک بندری", price: 35000 },
+  { id: 89, title: "رپ کارتوفل(کلانا)", price: 5000 },
+  { id: 90, title: "رپ گوشت(کلانا)", price: 45000 },
+  { id: 91, title: "ساندویچ الویه مرغ و ژامبون(فست فود شریف)", price: 35000 },
+  { id: 92, title: "لوبیاپلو (فست فود شریف)", price: 35000 },
+
+  { id: 93, title: "بندری پرسی 400گرمی (کلین‌فود)", price: 35000 },
+  { id: 94, title: "ساندویچ بزرگ کالباس مرغ 70%(کلین فود)", price: 35000 },
+  { id: 95, title: "ساندویچ نرمال چکین برگر ذغالی باپنیرگودا(کلین فود)", price: 35000 },
+  { id: 96, title: "ساندویچ نرمال ژامبون گوشت 90%(کلین فود)", price: 35000 },
 ];
 
 export function normalizeFoodName(name) {
@@ -152,7 +165,6 @@ export const FOOD_CATEGORIES = [
   { id: "clean", title: "کلین‌فود", icon_custom_emoji_id: "5328065681269203890" },
 ];
 
-// selfIds after vendors got split in Samad
 export const SAMAD_SELVES = [
   { id: 1, key: "main", title: "سلف مرکزی / کاله", categoryIds: ["self", "kaleh"] },
   { id: 22, key: "sharifi", title: "فست‌فود شریف", categoryIds: ["sharifi"] },
@@ -185,9 +197,9 @@ export function buildPreferenceText(userId, foods, userFoodState) {
 
   if (selected.length === 0) {
     if (cat) {
-      return `🍽 دسته «${cat.title}»\n\nهنوز غذایی انتخاب نکرده‌اید. از لیست زیر انتخاب کنید.`;
+      return `<tg-emoji emoji-id="5359678839591018693">🍽</tg-emoji> دسته «${cat.title}»\n\nهنوز غذایی انتخاب نکرده‌اید. از لیست زیر انتخاب کنید.`;
     }
-    return "🍽 لطفا به ترتیب علاقه، غذاهای موردنظر خودتون رو انتخاب کنید\n\nاول یک دسته را انتخاب کنید:";
+    return `<tg-emoji emoji-id="5359678839591018693">🍽</tg-emoji> لطفا به ترتیب علاقه، غذاهای موردنظر خودتون رو انتخاب کنید\n\nاول یک دسته را انتخاب کنید:`;
   }
 
   const lines = selected.map((food, index) => {
@@ -195,9 +207,7 @@ export function buildPreferenceText(userId, foods, userFoodState) {
     return p ? `${index + 1}. ${food.title}  -  <b>${Number(p).toLocaleString("en-US")} تومان</b>` : `${index + 1}. ${food.title}`;
   });
 
-  const catHint = cat
-    ? `\n\n📂 در حال مشاهده: <b>${cat.title}</b>`
-    : `\n\nبرای ادامه، یک دسته را انتخاب کنید.`;
+  const catHint = cat ? `\n\n<tg-emoji emoji-id="6039630677182254664">📂</tg-emoji> در حال مشاهده: <b>${cat.title}</b>` : `\n\nبرای ادامه، یک دسته را انتخاب کنید.`;
 
   return `<tg-emoji emoji-id="5427009714745517609">✅</tg-emoji> انتخاب فعلی شما (به ترتیب اولویت):\n\n${lines.join("\n")}${catHint}`;
 }
@@ -327,12 +337,26 @@ export function flattenWeekPrograms(apiData) {
   return list.flat().filter(Boolean);
 }
 
-// hideInPanel=true means menu is not shown in Samad yet
 export function isWeekMenuReady(apiData) {
   const visible = flattenWeekPrograms(apiData).filter((p) => p?.hideInPanel === false);
   if (visible.length === 0) return false;
   const requiredDays = ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday"];
   return requiredDays.every((day) => visible.some((p) => p.dayTranslated === day));
+}
+
+export function isSelfOpenedInPanel(apiData) {
+  return flattenWeekPrograms(apiData).some((p) => p?.hideInPanel === false);
+}
+
+export function getVisibleDaysFa(apiData) {
+  const dayTitle = Object.fromEntries(DAYS.map((d) => [d.english, d.title]));
+  const order = DAYS.map((d) => d.english);
+  const seen = new Set(
+    flattenWeekPrograms(apiData)
+      .filter((p) => p?.hideInPanel === false && p?.dayTranslated)
+      .map((p) => p.dayTranslated),
+  );
+  return order.filter((en) => seen.has(en)).map((en) => dayTitle[en]);
 }
 
 const ALLOWED_WAIT_SELF_IDS = new Set(SAMAD_SELVES.map((s) => s.id));
@@ -424,7 +448,7 @@ export function buildSettingsKeyboard(user) {
   const forceOn = Number(user?.force_reserve) === 1;
   const waitSelves = normalizeWaitSelves(user?.wait_selves);
 
-  const selfRows = SAMAD_SELVES.map((self) => {
+  const selfButtons = SAMAD_SELVES.map((self) => {
     const on = waitSelves.includes(self.id);
     const btn = {
       text: self.title,
@@ -432,8 +456,13 @@ export function buildSettingsKeyboard(user) {
       icon_custom_emoji_id: on ? "5774022692642492953" : "5774077015388852135",
     };
     if (on) btn.style = "success";
-    return [btn];
+    return btn;
   });
+
+  const selfRows = [];
+  for (let i = 0; i < selfButtons.length; i += 2) {
+    selfRows.push(selfButtons.slice(i, i + 2));
+  }
 
   return {
     inline_keyboard: [
@@ -449,6 +478,14 @@ export function buildSettingsKeyboard(user) {
           text: `رزرو اجباری غذای روز: ${forceOn ? "روشن" : "خاموش"}`,
           callback_data: "SETTINGS_TOGGLE_FORCE",
           icon_custom_emoji_id: `${forceOn ? "5774022692642492953" : "5774077015388852135"}`,
+        },
+      ],
+      [
+        {
+          text: "شروع رزرو پس از آماده‌شدن",
+          callback_data: "SETTINGS_SELVES_INFO",
+          icon_custom_emoji_id: "5431897022456145283",
+          style: "primary",
         },
       ],
       ...selfRows,
@@ -499,7 +536,7 @@ export function normalizeArray(value) {
   return [];
 }
 
-export const ALLOWED_USERS = new Set([
+export const PRIORITY_USERS = new Set([
   7672690394, 6789081090, 6380541321, 1294142200, 5172295118, 5611274321, 1794801892, 1129506561, 1144899446, 358114222, 6305899449, 1485455710, 661009969, 5422717034, 6717838393, 6113802539, 5401358599, 6493718498, 985677026, 5340478475, 1455558347, 1215651154, 8392658456,
   480225342, 1654053942, 7727591453, 7349894496, 6189662758, 618138833, 6129638645, 1985088412, 1360720393, 5393868617, 8231438658, 6350935813, 131618119, 1568641824, 8492180012, 7625892764, 5281617910, 6002878395, 5355895101, 720230451, 1831745322, 693464604, 6010801514,
   133999589, 1135773302, 1352697614, 5812623701, 448962281, 6641925712, 5788498184, 8093812189, 8499373497, 8459136776, 5128363658, 6231855439, 2136432772, 1100549924, 1811359942, 6868358536, 7567203821, 795414349, 7746902094, 1538217406, 7114718929, 7323402979, 5173727398,
@@ -508,6 +545,160 @@ export const ALLOWED_USERS = new Set([
   72986574, 8305778555, 404623651, 274989966, 5220686671, 6964074021, 1069129572, 379075872, 1283173649, 851269421, 1585743540, 6215875760, 1856962525, 311474197, 1489335100, 1149150675, 1035537594, 1099766840, 5883998073, 887889261, 2020081564, 7959160092, 1497579437,
   1932202740, 1235496823, 343748856, 661659142, 1880349583, 5272970943, 2041637341, 5766849973, 1184861381, 5292504324, 5489299851, 903556263, 8225978255, 5829291278, 8128307442, 5358679218, 1118244666, 1145266637,
 ]);
+
+export function isPriorityUser(userId) {
+  return PRIORITY_USERS.has(Number(userId));
+}
+
+export function buildWelcomeMessage(isPriority) {
+  const priorityBlock = isPriority
+    ? `<h3><tg-emoji emoji-id="5843553939672274145">⚡️</tg-emoji> اولویت ویژه رزرو</h3>
+<aside><b><mark>اکانت شما جزو ورودی کامپیوتر ۱۴۰۴ شناسایی شد و اولویت رزرو غذا برای شما از سایر کاربران بیشتر است.</mark></b></aside>`
+    : `<h3><tg-emoji emoji-id="5879501875341955281">ℹ️</tg-emoji> درباره اولویت رزرو</h3>
+<aside><b><mark>این ربات برای دانشجویان ورودی ۱۴۰۴ دانشکده کامپیوتر نوشته شده و آن‌ها در اولویت رزرو زودتری هستند. چون ماهیت ربات رزرو سریع غذاهای کم‌ظرفیت است، ابتدا رزرو کاربران نام‌برده انجام می‌شود و بعد به‌ترتیب تاریخ عضویت.</mark></b></aside>`;
+
+  return `<h2>سلام</h2>
+<p>به ربات رزرو خودکار غذای سامانه سماد (ویژه دانشجویان دانشگاه صنعتی شریف) خوش آمدید</p>
+<p>این ربات امکان رزرو خودکار غذای سلف را مطابق با ترجیحات شما فراهم می‌کند.</p>
+<p><tg-emoji emoji-id="5427009714745517609">✅</tg-emoji> در حال حاضر سلف مرکزی پشتیبانی می‌شود (غذای سلف، کاله، یونی‌فود، کلانا، فست‌فود شریف و کلین‌فود).</p>
+<p><tg-emoji emoji-id="5226512880362332956">📖</tg-emoji> <b>مراحل فعال‌سازی رزرو خودکار:</b></p>
+<ul>
+<li>انتخاب حداقل یک غذا</li>
+<li>انتخاب حداقل یک روز از هفته</li>
+</ul>
+<p><tg-emoji emoji-id="5213181173026533794">⚠️</tg-emoji> <b>پیش‌نیاز استفاده:</b></p>
+<ul>
+<li>داشتن اعتبار کافی در سامانه سماد</li>
+</ul>
+<p>توجه: تنظیمات فقط یک‌بار انجام می‌شود و در صورت نیاز، در هر زمان قابل تغییر است.</p>
+<p><tg-emoji emoji-id="5242628160297641831">🔔</tg-emoji> ربات نتیجه هر تلاش برای رزرو (موفق یا ناموفق) را به‌صورت پیام به شما اطلاع می‌دهد.</p>
+<p><tg-emoji emoji-id="5434144690511290129">📢</tg-emoji> برای اطلاع‌رسانی از آغاز رزرو غذا، عضو کانال زیر شوید:<br/>@Sharifsamad</p>
+<hr/>
+${priorityBlock}
+<footer>لطفا برای ادامه، یکی از گزینه‌های زیر را انتخاب نمایید <tg-emoji emoji-id="5470177992950946662">👇</tg-emoji></footer>`;
+}
+
+export function sendRichMessage(bot, chatId, html, options = {}) {
+  const form = {
+    chat_id: chatId,
+    rich_message: JSON.stringify({
+      html,
+      is_rtl: true,
+      skip_entity_detection: false,
+    }),
+    ...options,
+  };
+  if (form.reply_markup && typeof form.reply_markup !== "string") {
+    form.reply_markup = JSON.stringify(form.reply_markup);
+  }
+  return bot._request("sendRichMessage", { form });
+}
+
+export function editRichMessage(bot, chatId, messageId, html, options = {}) {
+  const form = {
+    chat_id: chatId,
+    message_id: messageId,
+    rich_message: JSON.stringify({
+      html,
+      is_rtl: true,
+      skip_entity_detection: false,
+    }),
+    ...options,
+  };
+  if (form.reply_markup && typeof form.reply_markup !== "string") {
+    form.reply_markup = JSON.stringify(form.reply_markup);
+  }
+  return bot._request("editMessageText", { form });
+}
+
+function escapeRichHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+export async function fetchAllSelvesWeekPrograms(token, weekStartDate) {
+  const bySelf = {};
+  for (const self of SAMAD_SELVES) {
+    try {
+      const res = await getSelfWeekPrograms(token, weekStartDate, self.id);
+      bySelf[self.id] = flattenWeekPrograms(res?.data);
+    } catch {
+      bySelf[self.id] = [];
+    }
+  }
+  return bySelf;
+}
+
+export function getSelvesWithProgram(bySelf) {
+  return SAMAD_SELVES.filter((s) => (bySelf?.[s.id] || []).length > 0);
+}
+
+export function buildWeekMenuFingerprint(bySelf) {
+  return SAMAD_SELVES.map((s) => {
+    const n = (bySelf?.[s.id] || []).length;
+    return n > 0 ? `${s.id}:${n}` : null;
+  })
+    .filter(Boolean)
+    .join("|");
+}
+
+export function buildWeekMenuRichMessage(weekStartDate, bySelf) {
+  const weekFa = formatLastCheckedProgram(weekStartDate);
+  const weekEn = String(weekStartDate).slice(0, 10);
+  const all = Object.values(bySelf || {}).flat();
+  const hasAny = all.length > 0;
+  const allHidden = hasAny && all.every((p) => p?.hideInPanel !== false);
+  const anyHidden = hasAny && all.some((p) => p?.hideInPanel !== false);
+  const withProgram = getSelvesWithProgram(bySelf);
+
+  const statusLine = !hasAny
+    ? `<aside><b>برای این هفته برنامه‌ای پیدا نشد.</b></aside>`
+    : allHidden
+      ? `<aside><b>درحال حاضر در سماد قابل رزرو نمی‌باشد</b></aside>`
+      : anyHidden
+        ? `<aside><b>درحال حاضر برخی از سلف‌ها در سماد قابل رزرو نمی‌باشد</b></aside>`
+        : `<aside><b>قابل رزرو از طریق سماد</b></aside>`;
+
+  const dayBlocks = DAYS.map((day) => {
+    const rows = [];
+    for (const self of SAMAD_SELVES) {
+      const items = (bySelf[self.id] || []).filter((p) => p?.dayTranslated === day.english && p?.foodName);
+      if (!items.length) {
+        rows.push(
+          `<tr><td>-</td><td><i>فعلا بدون برنامه غذایی</i></td><td>${escapeRichHtml(self.title)}</td></tr>`,
+        );
+        continue;
+      }
+      for (const p of items) {
+        const price = Number(p.price);
+        const priceLabel = Number.isFinite(price) ? `${Math.round(price / 10).toLocaleString("en-US")} تومان` : "-";
+        rows.push(
+          `<tr><td align="left">${escapeRichHtml(priceLabel)}</td><td>${escapeRichHtml(p.foodName)}</td><td>${escapeRichHtml(self.title)}</td></tr>`,
+        );
+      }
+    }
+    return `<h3><tg-emoji emoji-id="5431897022456145283">📅</tg-emoji> ${day.title}</h3>
+<table bordered striped>
+<tr><th align="left">قیمت</th><th>غذا</th><th>سلف</th></tr>
+${rows.join("\n")}
+</table>`;
+  }).join("\n");
+
+  return `<h2><tg-emoji emoji-id="5359678839591018693">🍽</tg-emoji> منوی هفته سماد</h2>
+<p>شروع هفته: <b>${escapeRichHtml(weekFa)}</b> · <code>${escapeRichHtml(weekEn)}</code></p>
+<p>سلف‌های دارای برنامه: <b>${withProgram.length}</b> از ${SAMAD_SELVES.length}</p>
+${statusLine}
+<hr/>
+${dayBlocks}
+<hr/>
+<p><b>برنامه غذایی هفته جدید مشخص شد.</b></p>
+<p><b>به محض باز شدن رزرو در سماد، در کانال اطلاع‌رسانی می‌شود.</b></p>
+<p><b>امکان رزرو خودکار با ربات:</b><br/>@samadSharifBot</p>
+`;
+}
 
 export function verifyTelegramWebAppData(telegramInitData) {
   if (!telegramInitData) return null;
