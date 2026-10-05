@@ -34,6 +34,16 @@ export async function saveDays(pool, userId, days) {
   await pool.query("UPDATE users SET days = ? WHERE id = ?", [JSON.stringify(days), userId]);
 }
 
+export async function getLoggedInUsers(pool) {
+  const [rows] = await pool.query(`
+SELECT id, username, password, access_token, auto_reserve, food_priority, days
+FROM users
+WHERE username IS NOT NULL
+  AND username <> ''
+`);
+  return rows;
+}
+
 export async function getAutoReserveUsers(pool) {
   const [rows] = await pool.query(`
 SELECT users.*
@@ -50,13 +60,7 @@ WHERE users.auto_reserve = 1
   AND (
     users.last_checked_program IS NULL
     OR users.last_checked_program <> DATE(system_state.value)
-    OR (
-      users.last_checked_program = DATE(system_state.value)
-      AND users.last_error_at IS NOT NULL
-      AND users.last_error_at <= NOW() - INTERVAL 1 DAY
-    )
   );
-
   `);
 
   return rows.map((u) => ({
@@ -64,6 +68,7 @@ WHERE users.auto_reserve = 1
     username: u.username,
     password: u.password,
     access_token: u.access_token,
+    created_at: u.created_at,
     food_priority: typeof u.food_priority === "string" ? JSON.parse(u.food_priority || "[]") : u.food_priority || [],
     days: typeof u.days === "string" ? JSON.parse(u.days || "[]") : u.days || [],
     force_reserve: Number(u.force_reserve) === 1,
@@ -111,25 +116,74 @@ function sameWeekKey(a, b) {
   return String(a).slice(0, 10) === String(b).slice(0, 10);
 }
 
-export async function getChannelNotifiedSelves(pool, weekStartDate) {
+export async function getChannelNotifyState(pool, weekStartDate) {
   const [rows] = await pool.query(`SELECT value FROM system_state WHERE \`key\`='channel_notified_selves'`);
   const raw = rows[0]?.value;
-  if (!raw) return [];
+  const empty = { summarySent: false, ids: [], dayCounts: {} };
+  if (!raw) return empty;
   try {
     const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
-    if (!sameWeekKey(parsed?.week, weekStartDate)) return [];
-    return Array.isArray(parsed?.ids) ? parsed.ids.map(Number).filter((n) => Number.isFinite(n)) : [];
+    if (!sameWeekKey(parsed?.week, weekStartDate)) return empty;
+    const ids = Array.isArray(parsed?.ids) ? parsed.ids.map(Number).filter((n) => Number.isFinite(n)) : [];
+    const dayCounts = {};
+    if (parsed?.dayCounts && typeof parsed.dayCounts === "object") {
+      for (const [k, v] of Object.entries(parsed.dayCounts)) {
+        const id = Number(k);
+        const n = Number(v);
+        if (Number.isFinite(id) && Number.isFinite(n)) dayCounts[id] = n;
+      }
+    }
+    return { summarySent: !!parsed?.summarySent, ids, dayCounts };
   } catch {
-    return [];
+    return empty;
   }
 }
 
-export async function setChannelNotifiedSelves(pool, weekStartDate, ids) {
+export async function setChannelNotifyState(pool, weekStartDate, { summarySent = false, ids = [], dayCounts = {} } = {}) {
   const unique = [...new Set((ids || []).map(Number).filter((n) => Number.isFinite(n)))];
+  const counts = {};
+  for (const [k, v] of Object.entries(dayCounts || {})) {
+    const id = Number(k);
+    const n = Number(v);
+    if (Number.isFinite(id) && Number.isFinite(n) && n > 0) counts[id] = n;
+  }
   await pool.query(
     `REPLACE INTO system_state (\`key\`, value)
      VALUES ('channel_notified_selves', ?)`,
-    [JSON.stringify({ week: weekStartDate, ids: unique })]
+    [JSON.stringify({ week: weekStartDate, summarySent: !!summarySent, ids: unique, dayCounts: counts })],
+  );
+}
+
+export async function getChannelWeekMenuState(pool, weekStartDate) {
+  const [rows] = await pool.query(`SELECT value FROM system_state WHERE \`key\`='channel_week_menu'`);
+  const raw = rows[0]?.value;
+  const empty = { messageId: null, fingerprint: null, selfCount: 0 };
+  if (!raw) return empty;
+  try {
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    if (!sameWeekKey(parsed?.week, weekStartDate)) return empty;
+    return {
+      messageId: parsed?.messageId != null ? Number(parsed.messageId) : null,
+      fingerprint: parsed?.fingerprint || null,
+      selfCount: Number(parsed?.selfCount) || 0,
+    };
+  } catch {
+    return empty;
+  }
+}
+
+export async function setChannelWeekMenuState(pool, weekStartDate, { messageId, fingerprint, selfCount } = {}) {
+  await pool.query(
+    `REPLACE INTO system_state (\`key\`, value)
+     VALUES ('channel_week_menu', ?)`,
+    [
+      JSON.stringify({
+        week: weekStartDate,
+        messageId: messageId != null ? Number(messageId) : null,
+        fingerprint: fingerprint || null,
+        selfCount: Number(selfCount) || 0,
+      }),
+    ],
   );
 }
 
