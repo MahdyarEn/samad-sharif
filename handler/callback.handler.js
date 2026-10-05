@@ -1,16 +1,9 @@
 import { getUser, logoutUser, saveDays, savefoodPriority, saveSession, setAutoReserve, setForceReserve, setWaitSelves } from "../db/index.js";
-import { ALLOWED_USERS, backKeyboard, buildAccountKeyboard, buildDaysKeyboard, buildDaysText, buildFoodKeyboard, buildHomeKeyboard, buildPreferenceText, buildSettingsKeyboard, buildSettingsText, DAYS, FOODS, normalizeArray, normalizeWaitSelves, SAMAD_SELVES } from "../utils/index.js";
+import { backKeyboard, buildAccountKeyboard, buildDaysKeyboard, buildDaysText, buildFoodKeyboard, buildHomeKeyboard, buildPreferenceText, buildSettingsKeyboard, buildSettingsText, DAYS, FOODS, normalizeArray, normalizeWaitSelves, SAMAD_SELVES } from "../utils/index.js";
 import { fetchUserProfile, loginUser } from "../api/services.js";
 
 export default async function handleCallback(bot, query, pool, userState) {
   const fromId = query.from.id;
-  if (!ALLOWED_USERS.has(fromId)) {
-    return bot.sendMessage(
-      fromId,
-      `<tg-emoji emoji-id="5017122105011995219">⛔️</tg-emoji> شما دسترسی استفاده از این ربات را ندارید
-  این ربات تنها برای دانشجویان ورودی 1404 دانشکده کامپیوتر قابل استفاده می‌باشد.`,
-    );
-  }
   const messageId = query.message.message_id;
   const data = query.data;
 
@@ -284,6 +277,14 @@ export default async function handleCallback(bot, query, pool, userState) {
       break;
     }
 
+    case data === "SETTINGS_SELVES_INFO": {
+      await bot.answerCallbackQuery(query.id, {
+        text: "رزرو فقط بعد از آماده‌شدن سلف‌های انتخابی شروع می‌شود",
+        show_alert: false,
+      });
+      break;
+    }
+
     case data.startsWith("SETTINGS_TOGGLE_SELF:"): {
       const selfId = Number(data.split(":")[1]);
       if (!SAMAD_SELVES.some((s) => s.id === selfId)) {
@@ -342,12 +343,17 @@ export default async function handleCallback(bot, query, pool, userState) {
       await logoutUser(pool, fromId);
       userState.delete(fromId);
 
-      await bot.editMessageText(`<tg-emoji emoji-id="5260726538302660868">✅</tg-emoji> با موفقیت از حساب کاربری خارج شدید.nnبرای استفاده مجدد، دوباره وارد سامانه شوید <tg-emoji emoji-id="5470177992950946662">👇</tg-emoji>`, {
-        chat_id: fromId,
-        message_id: messageId,
-        reply_markup: buildHomeKeyboard(false),
-        parse_mode: "HTML",
-      });
+      await bot.editMessageText(
+        `<tg-emoji emoji-id="5260726538302660868">✅</tg-emoji> با موفقیت از حساب کاربری خارج شدید.
+
+برای استفاده مجدد، دوباره وارد سامانه شوید <tg-emoji emoji-id="5470177992950946662">👇</tg-emoji>`,
+        {
+          chat_id: fromId,
+          message_id: messageId,
+          reply_markup: buildHomeKeyboard(false),
+          parse_mode: "HTML",
+        },
+      );
       break;
     }
 
@@ -406,27 +412,27 @@ export default async function handleCallback(bot, query, pool, userState) {
     /* ================= HELP SECTION ================= */
     case data === "HELP":
       {
-        const helpText = `<tg-emoji emoji-id="5372981976804366741">🤖</tg-emoji> این ربات چطور کار می‌کنه؟
-این ربات به‌صورت خودکار سامانه سماد رو بررسی می‌کنه و به محض باز شدن غذا، برای همه کاربران بر اساس تنظیمات و سلیقه‌شون غذا رو رزرو می‌کنه.
+        const helpText = `<tg-emoji emoji-id="5372981976804366741">🤖</tg-emoji> <b>راهنمای ربات</b>
+این ربات سامانه سماد رو به‌صورت خودکار چک می‌کنه و به‌محض باز شدن رزرو، طبق اولویت غذایی و روزهایی که انتخاب کردید براتون غذا رزرو می‌کنه تا غذاهای پرطرفدار جا نمونید و روزی رو فراموش نکنید.
 
-<tg-emoji emoji-id="5213181173026533794">⚠️</tg-emoji> توجه:
-حساب شما در سماد باید شارژ شده و موجودی کافی داشته باشه.
+<tg-emoji emoji-id="5359678839591018693">🍽</tg-emoji> <b>سلف‌های پشتیبانی‌شده</b>
+سلف مرکزی / کاله، فست‌فود شریف و کلین‌فود (شامل غذای سلف، کاله، یونی‌فود، کلانا و …).
 
-<tg-emoji emoji-id="5359678839591018693">🍽</tg-emoji> این ربات به چه دردی می‌خوره؟
-با این ربات می‌تونید غذای سلف رو به‌صورت خودکار
-و دقیقا طبق علاقه‌تون رزرو کنید.
+<tg-emoji emoji-id="5226512880362332956">📖</tg-emoji> <b>شروع کار</b>
+۱. ورود به سامانه سماد
+۲. انتخاب حداقل یک روز و اولویت غذاها
+۳. در تنظیمات، رزرو خودکار رو روشن کنید
 
-<tg-emoji emoji-id="6006071378984308148">⚡️</tg-emoji> مزیت نسبت به رزرو دستی چیه؟
-• غذاهای کاله ظرفیت محدود دارن و خیلی زود پر می‌شن ربات، در لحظه باز شدن رزرو می‌کنه
-• اگه یک روز فراموش کنید غذا رزرو کنید ربات خودکار براتون انجامش می‌ده
+<tg-emoji emoji-id="5818705028424141605">⚙️</tg-emoji> <b>تنظیمات مهم</b>
+• <b>رزرو خودکار:</b> روشن باشد تا ربات براتون رزرو کند
+• <b>رزرو اجباری:</b> اگر اولویت‌هاتون نبود/پر شد، از بقیه غذاهای همان روز امتحان می‌کند
+• <b>شروع پس از آماده‌شدن سلف:</b> می‌توانید مشخص کنید رزرو فقط بعد از آماده‌شدن سلف‌های انتخابی شروع شود
 
-<tg-emoji emoji-id="5472308992514464048">🔐</tg-emoji> اطلاعات من در خطر نیست؟
-این پروژه Open Source هست و کامل روی GitHub<tg-emoji emoji-id="5294334197832362643">🐱</tg-emoji>  منتشر شده.
-تمام اطلاعات حساس شما به‌صورت رمزگذاری‌شده در دیتابیس ذخیره می‌شن
-و هر زمان خواستید می‌تونید سورس کد رو بررسی کنید.
+<tg-emoji emoji-id="5213181173026533794">⚠️</tg-emoji> حساب سماد باید شارژ کافی داشته باشد.
 
+<tg-emoji emoji-id="5472308992514464048">🔐</tg-emoji> پروژه اوپن‌سورس است و اطلاعات حساس رمزگذاری می‌شوند:
 https://github.com/MahdyarEn/samad-sharif
-راستی اگه از این پروژه خوشتون اومد ممنون میشم با «<tg-emoji emoji-id="5463289097336405244">⭐️</tg-emoji>» دادن ازش حمایت کنید :)`;
+اگر براتون مفید بود، با «<tg-emoji emoji-id="5463289097336405244">⭐️</tg-emoji>» حمایت کنید.`;
         await bot.editMessageText(helpText, {
           chat_id: fromId,
           message_id: messageId,

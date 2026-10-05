@@ -1,18 +1,11 @@
 import { loginUser } from "../api/services.js";
 import { getUser, saveSession } from "../db/index.js";
-import { ALLOWED_USERS, backKeyboard, buildHomeKeyboard } from "../utils/index.js";
+import { backKeyboard, buildHomeKeyboard, buildWelcomeMessage, isPriorityUser, sendRichMessage } from "../utils/index.js";
 
 export default async function handleMessage(bot, msg, pool, userState) {
   try {
     if (msg.chat.type !== "private") return;
     const fromId = msg.from.id;
-    if (!ALLOWED_USERS.has(fromId)) {
-      return bot.sendMessage(
-        fromId,
-        `⛔️ شما دسترسی استفاده از این ربات را ندارید
-این ربات تنها برای دانشجویان ورودی 1404 دانشکده کامپیوتر قابل استفاده می‌باشد.`,
-      );
-    }
     const text = msg.text?.trim();
     let user = await getUser(fromId, pool);
     if (!user) {
@@ -46,38 +39,14 @@ export default async function handleMessage(bot, msg, pool, userState) {
           },
         ]),
       ]);
+      user = await getUser(fromId, pool);
     }
 
     switch (true) {
       case /^\/start(?:@\w+)?$/i.test(text):
-        bot.sendMessage(
-          fromId,
-          `سلام
-به ربات رزرو خودکار غذای سامانه سماد (ویژه دانشجویان دانشگاه صنعتی شریف) خوش آمدید
-
-این ربات امکان رزرو خودکار غذای سلف را مطابق با ترجیحات شما فراهم می‌کند.
-
-<tg-emoji emoji-id="5427009714745517609">✅</tg-emoji> در حال حاضر سلف مرکزی پشتیبانی می‌شود (غذای سلف، کاله، یونی‌فود، کلانا، فست‌فود شریف و کلین‌فود).
-
-<tg-emoji emoji-id="5226512880362332956">📖</tg-emoji> مراحل فعال‌سازی رزرو خودکار:
-• انتخاب حداقل یک غذا
-• انتخاب حداقل یک روز از هفته
-
-<tg-emoji emoji-id="5213181173026533794">⚠️</tg-emoji> پیش‌نیاز استفاده:
-• داشتن اعتبار کافی در سامانه سماد
-
-توجه: تنظیمات فقط یک‌بار انجام می‌شود و در صورت نیاز، در هر زمان قابل تغییر است.
-
-<tg-emoji emoji-id="5242628160297641831">🔔</tg-emoji> ربات نتیجه هر تلاش برای رزرو (موفق یا ناموفق) را به‌صورت پیام به شما اطلاع می‌دهد.
-
-<tg-emoji emoji-id="5434144690511290129">📢</tg-emoji> برای اطلاع‌رسانی از آغاز رزرو غذا، عضو کانال زیر شوید:
-@Sharifsamad
-
-لطفاً برای ادامه، یکی از گزینه‌های زیر را انتخاب نمایید <tg-emoji emoji-id="5470177992950946662">👇</tg-emoji>
-`,
-          { reply_markup: buildHomeKeyboard(!!user?.username), parse_mode: "HTML" },
-        );
-
+        await sendRichMessage(bot, fromId, buildWelcomeMessage(isPriorityUser(fromId)), {
+          reply_markup: buildHomeKeyboard(!!user?.username),
+        });
         break;
     }
 
@@ -87,13 +56,16 @@ export default async function handleMessage(bot, msg, pool, userState) {
         case "LOGIN_USERNAME":
           state.data.username = text;
           state.step = "LOGIN_PASSWORD";
-          await bot.sendMessage(fromId, "🔒 حالا پسورد اکانت سماد رو وارد کن:", { reply_markup: backKeyboard() });
+          await bot.sendMessage(fromId, `<tg-emoji emoji-id="5879895758202735862">🔒</tg-emoji> حالا پسورد اکانت سماد رو وارد کن:`, {
+            reply_markup: backKeyboard(),
+            parse_mode: "HTML",
+          });
           return;
 
         case "LOGIN_PASSWORD":
           state.data.password = text;
 
-          await bot.sendMessage(fromId, "⏳ در حال ورود...");
+          await bot.sendMessage(fromId, `<tg-emoji emoji-id="5451732530048802485">⏳</tg-emoji> در حال ورود...`, { parse_mode: "HTML" });
 
           const res = await loginUser(state.data.username, state.data.password, fromId, pool);
 
@@ -101,24 +73,23 @@ export default async function handleMessage(bot, msg, pool, userState) {
             saveSession(pool, fromId, state.data.username, text, res);
             await bot.sendMessage(
               fromId,
-              `✅ ورود با موفقیت به اکانت شما انجام شد
+              `<tg-emoji emoji-id="5843528161278562947">✅</tg-emoji> ورود با موفقیت به اکانت شما انجام شد
 
-📂 <b>اطلاعات کاربری شما</b>
+<tg-emoji emoji-id="6039630677182254664">📂</tg-emoji> <b>اطلاعات کاربری شما</b>
 
-👤 <b>نام و نام خانوادگی:</b> ${res.first_name} ${res.last_name}
-🧑‍💻 <b>یوزرنیم اکانت سماد:</b> <span class="tg-spoiler">${state.data.username}</span>
-🔐 <b>پسورد اکانت:</b> <span class="tg-spoiler">${text}</span>
+<tg-emoji emoji-id="5879770735999717115">👤</tg-emoji> <b>نام و نام خانوادگی:</b> ${res.first_name} ${res.last_name}
+<tg-emoji emoji-id="5920344347152224466">🧑‍💻</tg-emoji> <b>یوزرنیم اکانت سماد:</b> <span class="tg-spoiler">${state.data.username}</span>
+<tg-emoji emoji-id="5472308992514464048">🔐</tg-emoji> <b>پسورد اکانت:</b> <span class="tg-spoiler">${text}</span>
 
-⚠️ توجه داشته باشید که این اطلاعات صرفا برای ورود به سایت سماد استفاده میشوند و کاملا بصورت رمزگذاری شده ذخیره می‌شوند
+<tg-emoji emoji-id="5881702736843511327">⚠️</tg-emoji> توجه داشته باشید که این اطلاعات صرفا برای ورود به سایت سماد استفاده میشوند و کاملا بصورت رمزگذاری شده ذخیره می‌شوند
 
-—
-حالا یکی از عملیات زیر را انتخاب کنید 👇`,
+حالا یکی از عملیات زیر را انتخاب کنید <tg-emoji emoji-id="5470177992950946662">👇</tg-emoji>`,
               { reply_markup: buildHomeKeyboard(true), parse_mode: "HTML" },
             );
             userState.delete(fromId);
           } else {
             userState.delete(fromId);
-            await bot.sendMessage(fromId, "⭕️ اطلاعات کاربری وارد شده صحت ندارد، عملیات لغو شد.", { reply_markup: buildHomeKeyboard(false) });
+            await bot.sendMessage(fromId, `<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> اطلاعات کاربری وارد شده صحت ندارد، عملیات لغو شد.`, { reply_markup: buildHomeKeyboard(false), parse_mode: "HTML" });
           }
 
           return;
