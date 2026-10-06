@@ -118,7 +118,10 @@ app.post("/api/save-data", async (req, res) => {
       return res.status(403).json({ error: "اطلاعات شما معتبر نیست، لطفا مستقیما از ربات وب‌اپ را باز کنید" });
     }
     const userID = validate.id;
-    const [[rows]] = await pool.query("SELECT days,food_priority FROM users WHERE id = ?", [userID]);
+    const [[rows]] = await pool.query("SELECT days,food_priority,username FROM users WHERE id = ?", [userID]);
+    if (!rows?.username) {
+      return res.status(403).json({ error: "لطفا ابتدا از طریق ربات وارد اکانت سماد خود شوید" });
+    }
     const { foods, days, auto_reserve, force_reserve, wait_selves } = req?.body;
     await savefoodPriority(pool, userID, foods);
     await saveDays(pool, userID, days);
@@ -131,8 +134,6 @@ app.post("/api/save-data", async (req, res) => {
     res.json({ error: "خطایی هنگام ذخیره اطلاعات شما پیش آمد" });
   }
 });
-
-// ==========================================
 
 async function startBot() {
   const userState = new Map();

@@ -374,7 +374,9 @@ searchInput.addEventListener("input", (e) => {
   renderAllFoodsList(e.target.value);
 });
 
-function setError(err) {
+function setError(err, title = "دسترسی غیرمجاز") {
+  const titleEl = document.querySelector("#err-title");
+  if (titleEl) titleEl.textContent = title;
   document.querySelector("#err-msg").innerHTML = err;
   document.querySelector("#error").classList.remove("hidden");
   document.querySelector("#food-section")?.remove();
@@ -382,6 +384,8 @@ function setError(err) {
   document.querySelector("#settings-section")?.remove();
   document.querySelector("#wait-selves-section")?.remove();
   document.querySelector("#food-modal")?.remove();
+  document.querySelector("h1")?.remove();
+  telegram.MainButton.hide();
 }
 
 function closeWebApp() {
@@ -395,26 +399,28 @@ async function initApp() {
   if (waitSelvesBox) waitSelvesBox.innerHTML = '<div class="col-span-2 text-center text-tg-hint py-2 text-sm">در حال بارگذاری...</div>';
   apiData = await getUserData();
 
-  if (apiData) {
-    if (!apiData.isLogin) {
-      setError("لطفا ابتدا از طریق ربات وارد سامانه سماد شوید");
-    } else {
-      ALL_FOODS = Array.isArray(apiData.foods) ? apiData.foods : [];
-      if (apiData?.food_priority) {
-        userData.foods = apiData.food_priority.map((f) => {
-          const base = ALL_FOODS.find((x) => x.id === f.id);
-          return base ? { ...base, ...f, price: f.price ?? base.price } : f;
-        });
-      }
-      if (apiData?.days) selectedDays = apiData.days;
-      autoReserve = apiData?.auto_reserve !== false;
-      forceReserve = !!apiData?.force_reserve;
-      waitSelves = Array.isArray(apiData?.wait_selves) && apiData.wait_selves.length ? apiData.wait_selves.map(Number) : [1];
-      document.querySelector("#error").remove();
-    }
-  } else {
+  if (!apiData || apiData.error) {
     setError("این برنامه فقط از طریق ربات تلگرام قابل دسترسی است.\nلطفا لینک را داخل تلگرام باز کنید.");
+    return;
   }
+
+  if (!apiData.isLogin) {
+    setError("لطفا ابتدا از طریق ربات وارد اکانت سماد خود شوید.", "ورود لازم است");
+    return;
+  }
+
+  ALL_FOODS = Array.isArray(apiData.foods) ? apiData.foods : [];
+  if (apiData?.food_priority) {
+    userData.foods = apiData.food_priority.map((f) => {
+      const base = ALL_FOODS.find((x) => x.id === f.id);
+      return base ? { ...base, ...f, price: f.price ?? base.price } : f;
+    });
+  }
+  if (apiData?.days) selectedDays = apiData.days;
+  autoReserve = apiData?.auto_reserve !== false;
+  forceReserve = !!apiData?.force_reserve;
+  waitSelves = Array.isArray(apiData?.wait_selves) && apiData.wait_selves.length ? apiData.wait_selves.map(Number) : [1];
+  document.querySelector("#error")?.remove();
 
   renderSettings();
   renderWaitSelves();

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Samad WebAPP</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="./telegram-web-app.js"></script>
     <style>
       @import url("https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100..900&display=swap");
     </style>
@@ -96,14 +96,14 @@
       </div>
 
       <!-- Error -->
-      <div id="error" class="fixed hidden inset-0 z-100 bg-tg-bg flex items-center justify-center p-6 text-center transition-opacity duration-300">
+      <div id="error" class="fixed hidden inset-0 z-50 bg-tg-bg flex items-center justify-center p-6 text-center transition-opacity duration-300">
         <div class="bg-tg-secondary p-6 rounded-2xl shadow-lg w-full max-w-xs flex flex-col items-center gap-4">
           <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-2">
             <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
             </svg>
           </div>
-          <h3 class="text-tg-text text-lg font-bold">دسترسی غیرمجاز</h3>
+          <h3 class="text-tg-text text-lg font-bold" id="err-title">دسترسی غیرمجاز</h3>
           <p class="text-tg-hint text-sm leading-6" id="err-msg"></p>
           <button onclick="closeWebApp()" class="mt-2 w-full bg-tg-button text-tg-button-text py-2.5 rounded-lg font-medium text-sm hover:opacity-90 transition cursor-pointer">بازگشت به ربات</button>
         </div>
