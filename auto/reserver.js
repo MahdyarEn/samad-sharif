@@ -1,5 +1,5 @@
 import { fetchUserProfile, getSelfWeekPrograms, isBadCredentials, isInvalidToken, loginUser, reserveFood } from "../api/services.js";
-import { clearReserveError, logoutUser, saveSession, setUserLastCheckedProgram } from "../db/index.js";
+import { logoutUser, saveSession, setUserLastCheckedProgram } from "../db/index.js";
 import {
   areSelvesReady,
   buildHomeKeyboard,
@@ -259,7 +259,6 @@ async function reserveForUser(user, weekStartDate, pool, bot) {
 
     if (touchedAnyDay && !needsRetry) {
       await setUserLastCheckedProgram(user.id, weekStartDate, pool);
-      await clearReserveError(user.id, pool);
     }
   } catch (e) {
     needsRetry = true;

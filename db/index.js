@@ -22,11 +22,6 @@ export async function saveSession(pool, telegramId, username, password, session)
     [username, password, session.access_token ?? null, session.refresh_token ?? null, expiresAt, telegramId]
   );
 }
-export async function getSession(pool, telegramId) {
-  const [rows] = await pool.query(`SELECT * FROM users WHERE id = ?`, [telegramId]);
-  return rows[0] || null;
-}
-
 export async function savefoodPriority(pool, userId, food_priority) {
   await pool.query("UPDATE users SET food_priority = ? WHERE id = ?", [JSON.stringify(food_priority), userId]);
 }
@@ -210,7 +205,6 @@ export async function logoutUser(pool, telegramId) {
       refresh_token = NULL,
       expires_at = NULL,
       last_checked_program = NULL,
-      last_error_at = NULL,
       auto_reserve = 1
     WHERE id = ?
     `,
@@ -226,27 +220,5 @@ export async function setUserLastCheckedProgram(userId, weekDate, pool) {
     WHERE id = ?
     `,
     [weekDate, userId]
-  );
-}
-
-export async function markReserveError(userId, pool) {
-  await pool.query(
-    `
-    UPDATE users
-    SET last_error_at = NOW()
-    WHERE id = ?
-    `,
-    [userId]
-  );
-}
-
-export async function clearReserveError(userId, pool) {
-  await pool.query(
-    `
-    UPDATE users
-    SET last_error_at = NULL
-    WHERE id = ?
-    `,
-    [userId]
   );
 }

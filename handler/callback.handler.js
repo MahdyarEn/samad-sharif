@@ -1,15 +1,23 @@
 import { getUser, logoutUser, saveDays, savefoodPriority, saveSession, setAutoReserve, setForceReserve, setWaitSelves } from "../db/index.js";
 import { backKeyboard, buildAccountKeyboard, buildDaysKeyboard, buildDaysText, buildFoodKeyboard, buildHomeKeyboard, buildPreferenceText, buildSettingsKeyboard, buildSettingsText, DAYS, FOODS, normalizeArray, normalizeWaitSelves, SAMAD_SELVES } from "../utils/index.js";
-import { fetchUserProfile, loginUser } from "../api/services.js";
+import { fetchUserProfile, isBadCredentials, isInvalidToken, loginUser } from "../api/services.js";
 
 export default async function handleCallback(bot, query, pool, userState) {
   const fromId = query.from.id;
   const messageId = query.message.message_id;
   const data = query.data;
+  let answered = false;
+
+  const answer = async (opts) => {
+    if (answered) return;
+    answered = true;
+    await bot.answerCallbackQuery(query.id, opts).catch(() => {});
+  };
 
   let currentState = userState.get(fromId) || { foods: [], days: [] };
 
-  switch (true) {
+  try {
+    switch (true) {
     case data === "BACK": {
       const user = await getUser(fromId, pool);
       userState.delete(fromId);
@@ -95,8 +103,6 @@ export default async function handleCallback(bot, query, pool, userState) {
         reply_markup: buildFoodKeyboard(fromId, FOODS, userState),
         parse_mode: "HTML",
       });
-
-      await bot.answerCallbackQuery(query.id);
       break;
     }
 
@@ -109,7 +115,6 @@ export default async function handleCallback(bot, query, pool, userState) {
         reply_markup: buildFoodKeyboard(fromId, FOODS, userState),
         parse_mode: "HTML",
       });
-      await bot.answerCallbackQuery(query.id);
       break;
     }
 
@@ -123,16 +128,16 @@ export default async function handleCallback(bot, query, pool, userState) {
         reply_markup: buildFoodKeyboard(fromId, FOODS, userState),
         parse_mode: "HTML",
       });
-      await bot.answerCallbackQuery(query.id);
       break;
     }
 
     case data === "FOOD_CONFIRM": {
       if (currentState.foods.length === 0) {
-        return bot.answerCallbackQuery(query.id, {
+        await answer({
           text: "حداقل یک غذا انتخاب کنید ❗",
           show_alert: true,
         });
+        return;
       }
 
       await savefoodPriority(pool, fromId, currentState.foods);
@@ -191,17 +196,16 @@ export default async function handleCallback(bot, query, pool, userState) {
         reply_markup: buildDaysKeyboard(fromId, DAYS, userState),
         parse_mode: "HTML",
       });
-
-      await bot.answerCallbackQuery(query.id);
       break;
     }
 
-    case data == "DAYS_CONFIRM": {
+    case data === "DAYS_CONFIRM": {
       if (currentState.days.length === 0) {
-        return bot.answerCallbackQuery(query.id, {
+        await answer({
           text: "حداقل یک روز انتخاب کن ❗",
           show_alert: true,
         });
+        return;
       }
       await saveDays(pool, fromId, currentState.days);
       userState.delete(fromId);
@@ -253,7 +257,7 @@ export default async function handleCallback(bot, query, pool, userState) {
         reply_markup: buildSettingsKeyboard(updated),
         parse_mode: "HTML",
       });
-      await bot.answerCallbackQuery(query.id, {
+      await answer({
         text: next ? "رزرو خودکار روشن شد ✅" : "رزرو خودکار خاموش شد ❌",
       });
       break;
@@ -271,14 +275,14 @@ export default async function handleCallback(bot, query, pool, userState) {
         reply_markup: buildSettingsKeyboard(updated),
         parse_mode: "HTML",
       });
-      await bot.answerCallbackQuery(query.id, {
+      await answer({
         text: next ? "رزرو اجباری روشن شد ✅" : "رزرو اجباری خاموش شد ❌",
       });
       break;
     }
 
     case data === "SETTINGS_SELVES_INFO": {
-      await bot.answerCallbackQuery(query.id, {
+      await answer({
         text: "رزرو فقط بعد از آماده‌شدن سلف‌های انتخابی شروع می‌شود",
         show_alert: false,
       });
@@ -287,10 +291,7 @@ export default async function handleCallback(bot, query, pool, userState) {
 
     case data.startsWith("SETTINGS_TOGGLE_SELF:"): {
       const selfId = Number(data.split(":")[1]);
-      if (!SAMAD_SELVES.some((s) => s.id === selfId)) {
-        await bot.answerCallbackQuery(query.id);
-        break;
-      }
+      if (!SAMAD_SELVES.some((s) => s.id === selfId)) break;
       const user = await getUser(fromId, pool);
       let wait = normalizeWaitSelves(user?.wait_selves);
       if (wait.includes(selfId)) {
@@ -310,7 +311,7 @@ export default async function handleCallback(bot, query, pool, userState) {
       });
       const selfTitle = SAMAD_SELVES.find((s) => s.id === selfId)?.title || String(selfId);
       const nowOn = normalizeWaitSelves(updated?.wait_selves).includes(selfId);
-      await bot.answerCallbackQuery(query.id, {
+      await answer({
         text: nowOn ? `${selfTitle} اضافه شد ✅` : `${selfTitle} برداشته شد`,
       });
       break;
@@ -358,32 +359,74 @@ export default async function handleCallback(bot, query, pool, userState) {
     }
 
     case data === "ACCOUNT_INFO": {
+      let loadingId = null;
       try {
+        await bot.deleteMessage(fromId, messageId).catch(() => {});
+        const loadingMsg = await bot.sendMessage(
+          fromId,
+          `<tg-emoji emoji-id="5258113901106580375">⌛️</tg-emoji> درحال دریافت اطلاعات اکانت شما...`,
+          { parse_mode: "HTML" },
+        );
+        loadingId = loadingMsg.message_id;
+
         const getUserInfo = await getUser(fromId, pool);
 
-        let result = await fetchUserProfile(getUserInfo?.access_token);
-        if (result.error_description == "Invalid access token") {
-          const resalt2 = await loginUser(getUserInfo.username, getUserInfo.password, getUserInfo.id, pool);
-          if (resalt2?.access_token) {
-            saveSession(pool, getUserInfo.id, getUserInfo.password, getUserInfo.username, resalt2);
+        let result = await fetchUserProfile(getUserInfo?.access_token).catch(() => null);
+        if (isInvalidToken(result)) {
+          let login;
+          try {
+            login = await loginUser(getUserInfo.username, getUserInfo.password);
+          } catch (loginErr) {
+            console.error("[ACCOUNT_INFO] login unavailable", loginErr?.message || loginErr);
+            await bot.editMessageText(`<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> سماد موقتا در دسترس نیست، بعدا دوباره تلاش کنید.`, {
+              chat_id: fromId,
+              message_id: loadingId,
+              parse_mode: "HTML",
+              reply_markup: buildAccountKeyboard(),
+            });
+            return;
           }
-          result = await fetchUserProfile(resalt2?.access_token);
+
+          if (login?.access_token) {
+            await saveSession(pool, getUserInfo.id, getUserInfo.username, getUserInfo.password, login);
+            result = await fetchUserProfile(login.access_token).catch(() => null);
+          } else if (isBadCredentials(login)) {
+            await logoutUser(pool, fromId);
+            userState.delete(fromId);
+            await bot.editMessageText(
+              `<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> ورود به سماد با رمز ذخیره‌شده ممکن نشد.
+
+رمز عبور سماد اشتباه است؛ لطفا دوباره لاگین کنید.`,
+              {
+                chat_id: fromId,
+                message_id: loadingId,
+                parse_mode: "HTML",
+                reply_markup: buildHomeKeyboard(false),
+              },
+            );
+            return;
+          } else {
+            await bot.editMessageText(`<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> سماد موقتا در دسترس نیست، بعدا دوباره تلاش کنید.`, {
+              chat_id: fromId,
+              message_id: loadingId,
+              parse_mode: "HTML",
+              reply_markup: buildAccountKeyboard(),
+            });
+            return;
+          }
         }
 
-        if (result.error_description == "Invalid access token") {
-          await logoutUser(pool, fromId);
-          userState.delete(fromId);
-
-          return await bot.editMessageText(`شما رمز حساب خود را عوض کردید، لطفا مجدد لاگین کنید`, {
+        const profile = result?.payload;
+        const user = profile?.user;
+        if (!profile || !user) {
+          await bot.editMessageText(`<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> دریافت اطلاعات کاربری ممکن نشد، بعدا دوباره تلاش کنید.`, {
             chat_id: fromId,
-            message_id: messageId,
-            parse_mode: "Markdown",
-            reply_markup: buildHomeKeyboard(false),
+            message_id: loadingId,
+            parse_mode: "HTML",
+            reply_markup: buildAccountKeyboard(),
           });
+          return;
         }
-
-        const profile = result.payload;
-        const user = profile.user;
 
         const message = `<tg-emoji emoji-id="6032693626394382504">👤</tg-emoji> <b>اطلاعات کاربری سماد</b>
 
@@ -395,17 +438,27 @@ export default async function handleCallback(bot, query, pool, userState) {
 
         await bot.editMessageText(message, {
           chat_id: fromId,
-          message_id: messageId,
+          message_id: loadingId,
           parse_mode: "HTML",
           reply_markup: buildAccountKeyboard(),
         });
       } catch (err) {
         console.error("[ACCOUNT_INFO ERROR]", err);
-
-        await bot.answerCallbackQuery(query.id, {
-          text: "❌ دریافت اطلاعات کاربری با خطا مواجه شد",
-          show_alert: true,
-        });
+        if (loadingId) {
+          await bot
+            .editMessageText(`<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> دریافت اطلاعات کاربری با خطا مواجه شد.`, {
+              chat_id: fromId,
+              message_id: loadingId,
+              parse_mode: "HTML",
+              reply_markup: buildAccountKeyboard(),
+            })
+            .catch(() => {});
+        } else {
+          await answer({
+            text: "❌ دریافت اطلاعات کاربری با خطا مواجه شد",
+            show_alert: true,
+          });
+        }
       }
       break;
     }
@@ -441,5 +494,8 @@ https://github.com/MahdyarEn/samad-sharif
         });
       }
       break;
+    }
+  } finally {
+    await answer();
   }
 }
