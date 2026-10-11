@@ -1,4 +1,4 @@
-import { fetchUserProfile, getSelfWeekPrograms, loginUser, reserveFood } from "../api/services.js";
+import { fetchUserProfile, getSelfWeekPrograms, isBadCredentials, isInvalidToken, loginUser, reserveFood } from "../api/services.js";
 import { clearReserveError, logoutUser, saveSession, setUserLastCheckedProgram } from "../db/index.js";
 import {
   areSelvesReady,
@@ -14,6 +14,10 @@ import {
 } from "../utils/index.js";
 
 const CONCURRENCY = 5;
+const BAD_PASSWORD_MSG = `<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> ورود به سماد با رمز ذخیره‌شده ممکن نشد.
+
+رمز عبور سماد اشتباه است؛ لطفا دوباره در ربات لاگین کنید.`;
+
 function sortUsersByReservePriority(users) {
   return [...users].sort((a, b) => {
     const ap = isPriorityUser(a.id) ? 0 : 1;
@@ -29,10 +33,6 @@ function isClosedOrAlreadyError(messageFa = "") {
 
 function isFoodFullError(messageFa = "") {
   return String(messageFa).startsWith("غذاهای ذیل تا حداکثر سقف ممکن توسط کاربران رزرو شده اند");
-}
-
-function isInvalidToken(data) {
-  return data?.error_description == "Invalid access token";
 }
 
 async function tryReserveProgram(user, program, day, bot) {
@@ -105,25 +105,34 @@ async function reserveForUser(user, weekStartDate, pool, bot) {
       bySelf = await fetchProgramsBySelf(user?.access_token, weekStartDate, gender);
     } catch (e) {
       if (e.code !== "INVALID_TOKEN") throw e;
-      const resalt = await loginUser(user.username, user.password);
+
+      let resalt;
+      try {
+        resalt = await loginUser(user.username, user.password);
+      } catch (loginErr) {
+        console.error(`[AUTO] login unavailable user=${user.id}`, loginErr?.message || loginErr);
+        needsRetry = true;
+        return;
+      }
+
       if (resalt?.access_token) {
         await saveSession(pool, user.id, user.username, user.password, resalt);
         user.access_token = resalt.access_token;
         gender = await detectUserGender(resalt.access_token);
         user.gender = gender;
         bySelf = await fetchProgramsBySelf(resalt.access_token, weekStartDate, gender);
+      } else if (isBadCredentials(resalt)) {
+        await logoutUser(pool, user.id);
+        bot.sendMessage(user.id, BAD_PASSWORD_MSG, {
+          reply_markup: buildHomeKeyboard(false),
+          parse_mode: "HTML",
+        });
+        return;
       } else {
-        throw e;
+        console.error(`[AUTO] login unexpected user=${user.id}`, resalt);
+        needsRetry = true;
+        return;
       }
-    }
-
-    if (!bySelf) {
-      await logoutUser(pool, user.id);
-      bot.sendMessage(user.id, `<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> رزرو غذا در سماد با خطا مواجد شد\nشما رمز اکانت خود را عوض کردید، لطفا مجددا در ربات لاگین کنید`, {
-        reply_markup: buildHomeKeyboard(false),
-        parse_mode: "HTML",
-      });
-      return;
     }
 
     const allPrograms = Object.values(bySelf).flat();
@@ -253,16 +262,8 @@ async function reserveForUser(user, weekStartDate, pool, bot) {
       await clearReserveError(user.id, pool);
     }
   } catch (e) {
-    if (e.code === "INVALID_TOKEN") {
-      await logoutUser(pool, user.id);
-      bot.sendMessage(user.id, `<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> رزرو غذا در سماد با خطا مواجد شد\nشما رمز اکانت خود را عوض کردید، لطفا مجددا در ربات لاگین کنید`, {
-        reply_markup: buildHomeKeyboard(false),
-        parse_mode: "HTML",
-      });
-      return;
-    }
     needsRetry = true;
-    console.error(`[AUTO] ERROR user=${user.id}`, e);
+    console.error(`[AUTO] ERROR user=${user.id}`, e?.code || "", e?.message || e);
   }
 }
 

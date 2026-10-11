@@ -1,4 +1,4 @@
-import { loginUser } from "../api/services.js";
+import { isBadCredentials, loginUser } from "../api/services.js";
 import { getUser, saveSession } from "../db/index.js";
 import { backKeyboard, buildHomeKeyboard, buildWelcomeMessage, isPriorityUser, sendRichMessage } from "../utils/index.js";
 
@@ -67,10 +67,21 @@ export default async function handleMessage(bot, msg, pool, userState) {
 
           await bot.sendMessage(fromId, `<tg-emoji emoji-id="5451732530048802485">⏳</tg-emoji> در حال ورود...`, { parse_mode: "HTML" });
 
-          const res = await loginUser(state.data.username, state.data.password, fromId, pool);
+          let res;
+          try {
+            res = await loginUser(state.data.username, state.data.password);
+          } catch (loginErr) {
+            console.error("[LOGIN] samad unavailable", loginErr?.message || loginErr);
+            userState.delete(fromId);
+            await bot.sendMessage(fromId, `<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> سماد موقتا در دسترس نیست، بعدا دوباره تلاش کنید.`, {
+              reply_markup: buildHomeKeyboard(false),
+              parse_mode: "HTML",
+            });
+            return;
+          }
 
           if (res?.access_token) {
-            saveSession(pool, fromId, state.data.username, text, res);
+            await saveSession(pool, fromId, state.data.username, text, res);
             await bot.sendMessage(
               fromId,
               `<tg-emoji emoji-id="5843528161278562947">✅</tg-emoji> ورود با موفقیت به اکانت شما انجام شد
@@ -89,7 +100,10 @@ export default async function handleMessage(bot, msg, pool, userState) {
             userState.delete(fromId);
           } else {
             userState.delete(fromId);
-            await bot.sendMessage(fromId, `<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> اطلاعات کاربری وارد شده صحت ندارد، عملیات لغو شد.`, { reply_markup: buildHomeKeyboard(false), parse_mode: "HTML" });
+            const msg = isBadCredentials(res)
+              ? `<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> اطلاعات کاربری وارد شده صحت ندارد، عملیات لغو شد.`
+              : `<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> سماد موقتا در دسترس نیست، بعدا دوباره تلاش کنید.`;
+            await bot.sendMessage(fromId, msg, { reply_markup: buildHomeKeyboard(false), parse_mode: "HTML" });
           }
 
           return;

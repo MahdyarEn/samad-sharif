@@ -1,6 +1,15 @@
 import { safeDecrypt } from "../utils/cypto.js";
 import api from "./axios.js";
 import qs from "qs";
+
+export function isInvalidToken(data) {
+  return data?.error === "invalid_token" || data?.error_description === "Invalid access token";
+}
+
+export function isBadCredentials(data) {
+  return data?.error === "invalid_grant" || data?.error_description === "Bad credentials";
+}
+
 export async function loginUser(username, password) {
   username = safeDecrypt(username);
   password = safeDecrypt(password);

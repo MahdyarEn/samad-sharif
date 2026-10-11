@@ -1,4 +1,4 @@
-import { fetchUserProfile, loginUser } from "../api/services.js";
+import { fetchUserProfile, isInvalidToken, loginUser } from "../api/services.js";
 import { getLoggedInUsers, saveSession } from "../db/index.js";
 import { buildHomeKeyboard, normalizeArray } from "../utils/index.js";
 
@@ -12,7 +12,7 @@ async function getProfileCredit(user, pool) {
   let token = user.access_token;
   let result = await fetchUserProfile(token).catch(() => null);
 
-  if (!result || result?.error_description === "Invalid access token") {
+  if (!result || isInvalidToken(result)) {
     const login = await loginUser(user.username, user.password).catch(() => null);
     if (!login?.access_token) return null;
     await saveSession(pool, user.id, user.username, user.password, login);

@@ -1,4 +1,4 @@
-import { fetchUserProfile, getSelfWeekPrograms, loginUser } from "../api/services.js";
+import { fetchUserProfile, getSelfWeekPrograms, isInvalidToken, loginUser } from "../api/services.js";
 import config from "../config.js";
 import { getAdminAccessToken, setAdminAccessToken } from "../db/index.js";
 import crypto from "crypto";
@@ -515,28 +515,21 @@ export function buildSettingsKeyboard(user) {
 }
 
 export async function getSamadAccessToken(pool) {
-  const res = await getAdminAccessToken(pool);
-  let access_token;
-  if (!res) {
-    const resalt2 = await loginUser(config.SAMAD_USERNAME, config.SAMAD_PASSWORD);
-    if (resalt2?.access_token) {
-      await setAdminAccessToken(pool, resalt2?.access_token);
-      return resalt2?.access_token;
-    }
-  } else {
-    access_token = await getAdminAccessToken(pool);
-    let result = await fetchUserProfile(config.SAMAD_USERNAME);
-    if (result.error_description == "Invalid access token") {
-      const resalt2 = await loginUser(config.SAMAD_USERNAME, config.SAMAD_PASSWORD);
-      if (resalt2?.access_token) {
-        await setAdminAccessToken(pool, resalt2?.access_token);
-        return resalt2?.access_token;
-      }
-    } else {
-      return access_token;
-    }
+  const cached = await getAdminAccessToken(pool);
+  if (cached) {
+    const profile = await fetchUserProfile(cached).catch(() => null);
+    if (!isInvalidToken(profile)) return cached;
   }
 
+  try {
+    const login = await loginUser(config.SAMAD_USERNAME, config.SAMAD_PASSWORD);
+    if (login?.access_token) {
+      await setAdminAccessToken(pool, login.access_token);
+      return login.access_token;
+    }
+  } catch (e) {
+    console.error("[ADMIN] login failed", e?.message || e);
+  }
   return null;
 }
 export function normalizeArray(value) {
