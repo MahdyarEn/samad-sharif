@@ -173,6 +173,24 @@ export const SAMAD_SELVES = [
   { id: 25, key: "unifood", title: "یونی‌فود", categoryIds: ["unifood"] },
 ];
 
+export function getMainSelfId(gender) {
+  return String(gender || "").includes("زن") ? 2 : 1;
+}
+
+export function resolveSelfId(selfId, gender) {
+  const id = Number(selfId);
+  if (id === 1 || id === 2) return getMainSelfId(gender);
+  return id;
+}
+
+export function resolveWaitSelves(wait, gender) {
+  return [...new Set(normalizeWaitSelves(wait).map((id) => resolveSelfId(id, gender)))];
+}
+
+export function getReserveSelfIds(gender) {
+  return [getMainSelfId(gender), 22, 23, 24, 25];
+}
+
 export function getFoodCategory(title = "") {
   const t = normalizeFoodName(title);
   if (/یونیفود|یونی\s*فود/.test(t)) return FOOD_CATEGORIES.find((c) => c.id === "unifood");
@@ -183,10 +201,11 @@ export function getFoodCategory(title = "") {
   return FOOD_CATEGORIES.find((c) => c.id === "self");
 }
 
-export function getSelfIdsForFood(title = "") {
+export function getSelfIdsForFood(title = "", gender) {
   const catId = getFoodCategory(title)?.id;
+  if (catId === "self" || catId === "kaleh") return [getMainSelfId(gender)];
   const self = SAMAD_SELVES.find((s) => s.categoryIds.includes(catId));
-  return [self?.id ?? 1];
+  return [self?.id ?? getMainSelfId(gender)];
 }
 
 export function buildPreferenceText(userId, foods, userFoodState) {
@@ -376,7 +395,8 @@ export function normalizeWaitSelves(value) {
 }
 
 export async function areSelvesReady(token, weekStartDate, selfIds) {
-  const ids = normalizeWaitSelves(selfIds);
+  const ids = [...new Set((selfIds || []).map(Number).filter((n) => Number.isFinite(n)))];
+  if (!ids.length) return false;
   for (const selfId of ids) {
     const res = await getSelfWeekPrograms(token, weekStartDate, selfId);
     if (res?.status !== 200 || !isWeekMenuReady(res.data)) return false;

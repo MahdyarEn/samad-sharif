@@ -288,7 +288,7 @@ export function startAutoReserve(pool, bot) {
 
       const users = await getAutoReserveUsers(pool);
       console.log("[CRON] auto users:", users.length);
-      await reserveForUsers(users, result.weekStartDate, pool, bot, adminToken);
+      await reserveForUsers(users, result.weekStartDate, pool, bot);
 
       if (result.isNewWeek) {
         await setLastReservedWeek(pool, result.weekStartDate);

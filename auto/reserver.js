@@ -1,9 +1,19 @@
-import { getSelfWeekPrograms, loginUser, reserveFood } from "../api/services.js";
+import { fetchUserProfile, getSelfWeekPrograms, loginUser, reserveFood } from "../api/services.js";
 import { clearReserveError, logoutUser, saveSession, setUserLastCheckedProgram } from "../db/index.js";
-import { areSelvesReady, buildHomeKeyboard, flattenWeekPrograms, getSelfIdsForFood, normalizeArray, normalizeFoodName, normalizeWaitSelves, isPriorityUser, SAMAD_SELVES, sleep } from "../utils/index.js";
+import {
+  areSelvesReady,
+  buildHomeKeyboard,
+  flattenWeekPrograms,
+  getReserveSelfIds,
+  getSelfIdsForFood,
+  normalizeArray,
+  normalizeFoodName,
+  resolveWaitSelves,
+  isPriorityUser,
+  sleep,
+} from "../utils/index.js";
 
 const CONCURRENCY = 5;
-
 function sortUsersByReservePriority(users) {
   return [...users].sort((a, b) => {
     const ap = isPriorityUser(a.id) ? 0 : 1;
@@ -55,18 +65,28 @@ async function tryReserveProgram(user, program, day, bot) {
   return { done: true, kind: "success" };
 }
 
-async function fetchProgramsBySelf(token, weekStartDate) {
+async function detectUserGender(token) {
+  const profile = await fetchUserProfile(token);
+  if (isInvalidToken(profile)) {
+    const err = new Error("Invalid access token");
+    err.code = "INVALID_TOKEN";
+    throw err;
+  }
+  return profile?.payload?.user?.gender || "مرد";
+}
+
+async function fetchProgramsBySelf(token, weekStartDate, gender) {
   const bySelf = {};
-  for (const self of SAMAD_SELVES) {
-    const res = await getSelfWeekPrograms(token, weekStartDate, self.id);
+  for (const selfId of getReserveSelfIds(gender)) {
+    const res = await getSelfWeekPrograms(token, weekStartDate, selfId);
     if (isInvalidToken(res?.data)) {
       const err = new Error("Invalid access token");
       err.code = "INVALID_TOKEN";
       throw err;
     }
-    bySelf[self.id] = flattenWeekPrograms(res?.data)
+    bySelf[selfId] = flattenWeekPrograms(res?.data)
       .filter((p) => p.hideInPanel === false)
-      .map((p) => ({ ...p, selfId: self.id }));
+      .map((p) => ({ ...p, selfId }));
   }
   return bySelf;
 }
@@ -78,16 +98,20 @@ async function reserveForUser(user, weekStartDate, pool, bot) {
   let touchedAnyDay = false;
 
   try {
+    let gender = user.gender;
     let bySelf;
     try {
-      bySelf = await fetchProgramsBySelf(user?.access_token, weekStartDate);
+      if (!gender) gender = await detectUserGender(user?.access_token);
+      bySelf = await fetchProgramsBySelf(user?.access_token, weekStartDate, gender);
     } catch (e) {
       if (e.code !== "INVALID_TOKEN") throw e;
       const resalt = await loginUser(user.username, user.password);
       if (resalt?.access_token) {
         await saveSession(pool, user.id, user.username, user.password, resalt);
         user.access_token = resalt.access_token;
-        bySelf = await fetchProgramsBySelf(resalt.access_token, weekStartDate);
+        gender = await detectUserGender(resalt.access_token);
+        user.gender = gender;
+        bySelf = await fetchProgramsBySelf(resalt.access_token, weekStartDate, gender);
       } else {
         throw e;
       }
@@ -104,10 +128,10 @@ async function reserveForUser(user, weekStartDate, pool, bot) {
 
     const allPrograms = Object.values(bySelf).flat();
     if (allPrograms.length === 0) {
-      console.log(`[RESERVE] user=${user.id} no visible programs across selves, skip`);
+      console.log(`[RESERVE] user=${user.id} gender=${gender} no visible programs across selves, skip`);
       return;
     }
-    console.log(`AutoReserve user ${user.id} programs=${allPrograms.length}`);
+    console.log(`AutoReserve user ${user.id} gender=${gender} mainSelf=${getReserveSelfIds(gender)[0]} programs=${allPrograms.length}`);
 
     const uDays = normalizeArray(user?.days);
     const uFoods = normalizeArray(user?.food_priority);
@@ -130,7 +154,7 @@ async function reserveForUser(user, weekStartDate, pool, bot) {
       const triedProgramIds = new Set();
 
       for (const food of uFoods) {
-        const selfIds = getSelfIdsForFood(food?.title);
+        const selfIds = getSelfIdsForFood(food?.title, gender);
         let program = null;
         for (const selfId of selfIds) {
           const dayPrograms = (bySelf[selfId] || []).filter((p) => p.dayTranslated === day.english);
@@ -242,19 +266,19 @@ async function reserveForUser(user, weekStartDate, pool, bot) {
   }
 }
 
-export async function reserveForUsers(users, weekStartDate, pool, bot, adminToken) {
+export async function reserveForUsers(users, weekStartDate, pool, bot) {
   const list = sortUsersByReservePriority(users.filter((u) => u?.username));
   console.log(`[RESERVE] start users=${list.length} concurrency=${CONCURRENCY} (priority first, then created_at)`);
 
   const readyCache = new Map();
-  async function userSelvesReady(waitSelves) {
-    const ids = normalizeWaitSelves(waitSelves);
-    const key = ids
+  async function userSelvesReady(user, gender) {
+    const ids = resolveWaitSelves(user.wait_selves, gender);
+    const key = `${gender}:${ids
       .slice()
       .sort((a, b) => a - b)
-      .join(",");
+      .join(",")}`;
     if (readyCache.has(key)) return readyCache.get(key);
-    const ok = adminToken ? await areSelvesReady(adminToken, weekStartDate, ids) : true;
+    const ok = user.access_token ? await areSelvesReady(user.access_token, weekStartDate, ids) : true;
     readyCache.set(key, ok);
     return ok;
   }
@@ -264,9 +288,24 @@ export async function reserveForUsers(users, weekStartDate, pool, bot, adminToke
     console.log(`[RESERVE] batch ${Math.floor(i / CONCURRENCY) + 1} size=${chunk.length} ids=${chunk.map((u) => u.id).join(",")}`);
     await Promise.all(
       chunk.map(async (user) => {
-        const ready = await userSelvesReady(user.wait_selves);
+        let gender = "مرد";
+        try {
+          gender = await detectUserGender(user.access_token);
+        } catch (e) {
+          if (e.code === "INVALID_TOKEN") {
+            const resalt = await loginUser(user.username, user.password);
+            if (resalt?.access_token) {
+              await saveSession(pool, user.id, user.username, user.password, resalt);
+              user.access_token = resalt.access_token;
+              gender = await detectUserGender(user.access_token);
+            }
+          }
+        }
+        user.gender = gender;
+
+        const ready = await userSelvesReady(user, gender);
         if (!ready) {
-          console.log(`[RESERVE] user=${user.id} wait_selves not ready [${normalizeWaitSelves(user.wait_selves).join(",")}], skip`);
+          console.log(`[RESERVE] user=${user.id} gender=${gender} wait_selves not ready [${resolveWaitSelves(user.wait_selves, gender).join(",")}], skip`);
           return;
         }
         return reserveForUser(user, weekStartDate, pool, bot);
