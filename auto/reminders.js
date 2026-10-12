@@ -1,6 +1,6 @@
 import { fetchUserProfile, isInvalidToken, loginUser } from "../api/services.js";
 import { getLoggedInUsers, saveSession } from "../db/index.js";
-import { buildHomeKeyboard, normalizeArray } from "../utils/index.js";
+import { buildHomeKeyboard, normalizeArray, normalizeWaitSelves, SAMAD_SELVES } from "../utils/index.js";
 
 const DELAY_MS = 400;
 
@@ -24,25 +24,51 @@ async function getProfileCredit(user, pool) {
   return Number(result.payload.credit) / 10;
 }
 
-function buildReminderText({ creditToman, missingFoods, missingDays }) {
-  const parts = [];
+function waitSelfTitles(waitSelves) {
+  const ids = normalizeWaitSelves(waitSelves);
+  const titles = SAMAD_SELVES.filter((s) => ids.includes(s.id)).map((s) => s.title);
+  return titles.length ? titles.join("، ") : "سلف مرکزی / کاله";
+}
 
-  if (creditToman != null && creditToman < 100_000) {
-    parts.push(
-      `<tg-emoji emoji-id="5212962322967966165">💳</tg-emoji> <b>یادآوری شارژ سماد</b>\nموجودی کیف پول شما <b>${creditToman.toLocaleString("fa-IR")}</b> تومان است.\nبرای رزرو بدون مشکل، حساب سماد را شارژ کنید (پیشنهاد: حداقل ۱۰۰٬۰۰۰ تومان).`,
-    );
-  }
+function buildOffReminderText() {
+  return `<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> <b>رزرو خودکار شما خاموش است</b>
+
+این هفته برای شما رزرو انجام نمی‌شود.
+اگر می‌خواهید ربات براتون رزرو کند، از تنظیمات رزرو خودکار را روشن کنید.`;
+}
+
+function buildOnReminderText({ creditToman, forceOn, waitTitles, dayCount, missingFoods, missingDays }) {
+  const parts = [];
 
   if (missingFoods || missingDays) {
     const gaps = [];
     if (missingFoods) gaps.push("اولویت غذایی");
     if (missingDays) gaps.push("روزهای هفته");
     parts.push(
-      `<tg-emoji emoji-id="5818705028424141605">⚙️</tg-emoji> <b>تنظیمات رزرو ناقص است</b>\nرزرو خودکار روشن است، ولی ${gaps.join(" و ")} را انتخاب نکرده‌اید.\nاگر می‌خواهید ربات براتون رزرو کند، از منوی اصلی تنظیمات را تکمیل کنید.`,
+      `<tg-emoji emoji-id="5818705028424141605">⚙️</tg-emoji> <b>تنظیمات رزرو ناقص است</b>
+رزرو خودکار روشن است، ولی ${gaps.join(" و ")} را انتخاب نکرده‌اید.
+اگر می‌خواهید ربات براتون رزرو کند، از منوی اصلی تنظیمات را تکمیل کنید.`,
     );
+    return parts.join("\n\n");
   }
 
-  if (!parts.length) return null;
+  if (creditToman != null) {
+    const creditLine = `موجودی کیف پول سماد شما <b>${creditToman.toLocaleString("fa-IR")}</b> تومان است.`;
+    const hint =
+      creditToman < 100_000
+        ? "برای رزرو بدون مشکل، حساب سماد را شارژ کنید (پیشنهاد: حداقل ۱۰۰٬۰۰۰ تومان)."
+        : "اگر فکر می‌کنید کافی نیست، حساب سماد را شارژ کنید.";
+    parts.push(`<tg-emoji emoji-id="5212962322967966165">💳</tg-emoji> <b>موجودی سماد</b>\n${creditLine}\n${hint}`);
+  }
+
+  parts.push(
+    `<tg-emoji emoji-id="5818705028424141605">⚙️</tg-emoji> <b>یادآوری تنظیمات رزرو</b>
+• رزرو خودکار: <b>روشن</b>
+• رزرو اجباری غذای روز: <b>${forceOn ? "روشن" : "خاموش"}</b>
+• سلف‌های شروع رزرو: <b>${waitTitles}</b>
+• تعداد روز رزرو در هفته: <b>${dayCount.toLocaleString("fa-IR")}</b> روز`,
+  );
+
   return parts.join("\n\n");
 }
 
@@ -53,18 +79,25 @@ export async function runWeeklyReminders(pool, bot) {
   let sent = 0;
   for (const user of users) {
     try {
-      const creditToman = await getProfileCredit(user, pool);
       const autoOn = Number(user.auto_reserve) === 1;
+      const forceOn = Number(user.force_reserve) === 1;
       const foods = normalizeArray(user.food_priority);
       const days = normalizeArray(user.days);
 
-      const text = buildReminderText({
-        creditToman,
-        missingFoods: autoOn && foods.length === 0,
-        missingDays: autoOn && days.length === 0,
-      });
-
-      if (!text) continue;
+      let text;
+      if (!autoOn) {
+        text = buildOffReminderText();
+      } else {
+        const creditToman = await getProfileCredit(user, pool);
+        text = buildOnReminderText({
+          creditToman,
+          forceOn,
+          waitTitles: waitSelfTitles(user.wait_selves),
+          dayCount: days.length,
+          missingFoods: foods.length === 0,
+          missingDays: days.length === 0,
+        });
+      }
 
       await bot.sendMessage(user.id, text, {
         parse_mode: "HTML",

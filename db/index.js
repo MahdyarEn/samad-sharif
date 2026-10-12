@@ -31,7 +31,7 @@ export async function saveDays(pool, userId, days) {
 
 export async function getLoggedInUsers(pool) {
   const [rows] = await pool.query(`
-SELECT id, username, password, access_token, auto_reserve, food_priority, days
+SELECT id, username, password, access_token, auto_reserve, force_reserve, wait_selves, food_priority, days
 FROM users
 WHERE username IS NOT NULL
   AND username <> ''
