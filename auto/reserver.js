@@ -151,7 +151,8 @@ async function reserveForUser(user, weekStartDate, pool, bot) {
       const isLastDay = dayIndex === uDays.length - 1;
       const dayProgramsAll = allPrograms.filter((p) => p.dayTranslated === day.english);
       if (dayProgramsAll.length === 0) {
-        console.log(`[RESERVE] user=${user.id} day=${day.title} no programs, skip`);
+        console.log(`[RESERVE] user=${user.id} day=${day.title} not open yet, retry later`);
+        needsRetry = true;
         continue;
       }
 
@@ -266,19 +267,24 @@ async function reserveForUser(user, weekStartDate, pool, bot) {
   }
 }
 
-export async function reserveForUsers(users, weekStartDate, pool, bot) {
+export async function reserveForUsers(users, weekStartDate, pool, bot, adminToken) {
   const list = sortUsersByReservePriority(users.filter((u) => u?.username));
   console.log(`[RESERVE] start users=${list.length} concurrency=${CONCURRENCY} (priority first, then created_at)`);
 
   const readyCache = new Map();
   async function userSelvesReady(user, gender) {
     const ids = resolveWaitSelves(user.wait_selves, gender);
+    const days = normalizeArray(user?.days)
+      .map((d) => d?.english)
+      .filter(Boolean);
     const key = `${gender}:${ids
       .slice()
       .sort((a, b) => a - b)
-      .join(",")}`;
+      .join(",")}:${days.slice().sort().join(",")}`;
     if (readyCache.has(key)) return readyCache.get(key);
-    const ok = user.access_token ? await areSelvesReady(user.access_token, weekStartDate, ids) : true;
+    const token = adminToken || user.access_token;
+    if (!token) return true;
+    const ok = await areSelvesReady(token, weekStartDate, ids, days);
     readyCache.set(key, ok);
     return ok;
   }
@@ -305,7 +311,12 @@ export async function reserveForUsers(users, weekStartDate, pool, bot) {
 
         const ready = await userSelvesReady(user, gender);
         if (!ready) {
-          console.log(`[RESERVE] user=${user.id} gender=${gender} wait_selves not ready [${resolveWaitSelves(user.wait_selves, gender).join(",")}], skip`);
+          const days = normalizeArray(user?.days)
+            .map((d) => d?.english)
+            .filter(Boolean);
+          console.log(
+            `[RESERVE] user=${user.id} gender=${gender} wait_selves not ready selves=[${resolveWaitSelves(user.wait_selves, gender).join(",")}] days=[${days.join(",")}], skip`,
+          );
           return;
         }
         return reserveForUser(user, weekStartDate, pool, bot);

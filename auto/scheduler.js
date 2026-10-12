@@ -97,8 +97,8 @@ async function syncChannelWeekMenu(bot, adminToken, pool) {
   const fingerprint = buildWeekMenuFingerprint(bySelf);
   const state = await getChannelWeekMenuState(pool, weekStartDate);
 
-  if (selfCount < 3) {
-    console.log(`[CRON] week menu wait selves=${selfCount}/3`);
+  if (!selfCount) {
+    console.log("[CRON] week menu wait: no self with program yet");
     return;
   }
 
@@ -288,7 +288,7 @@ export function startAutoReserve(pool, bot) {
 
       const users = await getAutoReserveUsers(pool);
       console.log("[CRON] auto users:", users.length);
-      await reserveForUsers(users, result.weekStartDate, pool, bot);
+      await reserveForUsers(users, result.weekStartDate, pool, bot, adminToken);
 
       if (result.isNewWeek) {
         await setLastReservedWeek(pool, result.weekStartDate);

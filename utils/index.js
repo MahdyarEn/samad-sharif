@@ -356,25 +356,22 @@ export function flattenWeekPrograms(apiData) {
   return list.flat().filter(Boolean);
 }
 
-export function isWeekMenuReady(apiData) {
-  const visible = flattenWeekPrograms(apiData).filter((p) => p?.hideInPanel === false);
-  if (visible.length === 0) return false;
-  const requiredDays = ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday"];
-  return requiredDays.every((day) => visible.some((p) => p.dayTranslated === day));
-}
-
 export function isSelfOpenedInPanel(apiData) {
   return flattenWeekPrograms(apiData).some((p) => p?.hideInPanel === false);
+}
+
+export function getVisibleDaySet(apiData) {
+  return new Set(
+    flattenWeekPrograms(apiData)
+      .filter((p) => p?.hideInPanel === false && p?.dayTranslated)
+      .map((p) => p.dayTranslated),
+  );
 }
 
 export function getVisibleDaysFa(apiData) {
   const dayTitle = Object.fromEntries(DAYS.map((d) => [d.english, d.title]));
   const order = DAYS.map((d) => d.english);
-  const seen = new Set(
-    flattenWeekPrograms(apiData)
-      .filter((p) => p?.hideInPanel === false && p?.dayTranslated)
-      .map((p) => p.dayTranslated),
-  );
+  const seen = getVisibleDaySet(apiData);
   return order.filter((en) => seen.has(en)).map((en) => dayTitle[en]);
 }
 
@@ -394,12 +391,16 @@ export function normalizeWaitSelves(value) {
   return ids.length ? ids : [1];
 }
 
-export async function areSelvesReady(token, weekStartDate, selfIds) {
+export async function areSelvesReady(token, weekStartDate, selfIds, dayEnglishes = []) {
   const ids = [...new Set((selfIds || []).map(Number).filter((n) => Number.isFinite(n)))];
-  if (!ids.length) return false;
+  const days = [...new Set((dayEnglishes || []).map(String).filter(Boolean))];
+  if (!ids.length || !days.length) return false;
+
   for (const selfId of ids) {
     const res = await getSelfWeekPrograms(token, weekStartDate, selfId);
-    if (res?.status !== 200 || !isWeekMenuReady(res.data)) return false;
+    if (res?.status !== 200) return false;
+    const visible = getVisibleDaySet(res.data);
+    if (!days.every((day) => visible.has(day))) return false;
   }
   return true;
 }
@@ -704,6 +705,7 @@ ${rows.join("\n")}
 <p>شروع هفته: <b>${escapeRichHtml(weekFa)}</b> · <code>${escapeRichHtml(weekEn)}</code></p>
 <p>سلف‌های دارای برنامه: <b>${withProgram.length}</b> از ${SAMAD_SELVES.length}</p>
 ${statusLine}
+<aside><b>این لیست به محض به‌روزرسانی سایر سلف‌ها، خودکار به‌روز می‌شود.</b></aside>
 <hr/>
 ${dayBlocks}
 <hr/>
