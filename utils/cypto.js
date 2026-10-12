@@ -4,7 +4,7 @@ const ALGORITHM = "aes-256-gcm";
 const SECRET_KEY = Buffer.from(process.env.CREDENTIAL_SECRET, "hex"); // 32 bytes
 const IV_LENGTH = 16;
 
-export function encrypt(text) {
+function encrypt(text) {
   const iv = crypto.randomBytes(IV_LENGTH);
   const cipher = crypto.createCipheriv(ALGORITHM, SECRET_KEY, iv);
 
@@ -16,7 +16,7 @@ export function encrypt(text) {
   return `${iv.toString("hex")}:${tag}:${encrypted}`;
 }
 
-export function decrypt(data) {
+function decrypt(data) {
   const [ivHex, tagHex, encrypted] = data.split(":");
 
   const decipher = crypto.createDecipheriv(ALGORITHM, SECRET_KEY, Buffer.from(ivHex, "hex"));
@@ -28,15 +28,25 @@ export function decrypt(data) {
 
   return decrypted;
 }
-export function isEncrypted(value) {
+function isEncrypted(value) {
   return typeof value === "string" && value.includes(":") && value.split(":").length === 3;
 }
+
+export function ensureEncrypted(value) {
+  if (!value) return value;
+  return isEncrypted(value) ? value : encrypt(String(value));
+}
+
 export function safeDecrypt(value) {
   if (!value) return value;
 
-  if (!isEncrypted(value)) {
-    return value;
+  let out = value;
+  for (let i = 0; i < 3 && isEncrypted(out); i++) {
+    try {
+      out = decrypt(out);
+    } catch {
+      break;
+    }
   }
-
-  return decrypt(value);
+  return out;
 }

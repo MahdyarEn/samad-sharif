@@ -7,7 +7,7 @@ export function isInvalidToken(data) {
 }
 
 export function isBadCredentials(data) {
-  return data?.error === "invalid_grant" || data?.error_description === "Bad credentials";
+  return data?.error === "invalid_grant" && data?.error_description === "Bad credentials";
 }
 
 export async function loginUser(username, password) {
