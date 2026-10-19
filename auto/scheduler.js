@@ -26,6 +26,21 @@ function channelText(html) {
   return String(html).replace(/<tg-emoji emoji-id="[^"]*">([\s\S]*?)<\/tg-emoji>/gi, "$1");
 }
 
+function formatEditTime() {
+  return new Intl.DateTimeFormat("fa-IR", {
+    timeZone: "Asia/Tehran",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date());
+}
+
+function withEditTime(text, { rich = false } = {}) {
+  const time = formatEditTime();
+  if (rich) return `${String(text).trimEnd()}\n<p><i>آخرین ویرایش: ${time}</i></p>`;
+  return `${String(text).trimEnd()}\n\n<i>آخرین ویرایش: ${time}</i>`;
+}
+
 async function fetchSelfStatuses(adminToken, weekStartDate) {
   const statuses = [];
   for (const self of SAMAD_SELVES) {
@@ -45,11 +60,10 @@ async function fetchSelfStatuses(adminToken, weekStartDate) {
 function buildWeekSummaryText(weekFa, statuses, botUsername) {
   const lines = statuses.map(({ self, open, daysFa }) => {
     if (!open) return `• ${self.title}: برنامه غذایی نیست ❌`;
-    const count = daysFa.length;
-    return `• ${self.title}: باز ✅ (${count} روز)`;
+    return `• ${self.title}: باز ✅ (${daysFa.length} روز)`;
   });
 
-  return `<b>🍽 رزرو غذای این هفته باز شد</b>
+  return withEditTime(`<b>🍽 رزرو غذای این هفته باز شد</b>
 
 📅 شروع هفته: <code>${weekFa}</code>
 
@@ -58,7 +72,7 @@ ${lines.join("\n")}
 🔗 سامانه سماد:
 https://samad.app/
 
-🤖 ربات: @${botUsername}`;
+🤖 ربات: @${botUsername}`);
 }
 
 function buildSelfOpenedText(self, weekFa, daysFa, botUsername, { updated = false } = {}) {
@@ -83,6 +97,14 @@ function dayCountsFromOpened(opened) {
   return counts;
 }
 
+function countsChanged(prev, next) {
+  const keys = new Set([...Object.keys(prev || {}), ...Object.keys(next || {})]);
+  for (const k of keys) {
+    if ((Number(prev?.[k]) || 0) !== (Number(next?.[k]) || 0)) return true;
+  }
+  return false;
+}
+
 // channel week menu
 async function syncChannelWeekMenu(bot, adminToken, pool) {
   if (!config.CHANNEL_ID) {
@@ -102,7 +124,7 @@ async function syncChannelWeekMenu(bot, adminToken, pool) {
     return;
   }
 
-  const html = channelText(buildWeekMenuRichMessage(weekStartDate, bySelf));
+  const html = withEditTime(channelText(buildWeekMenuRichMessage(weekStartDate, bySelf)), { rich: true });
 
   if (!state.messageId) {
     const msg = await sendRichMessage(bot, config.CHANNEL_ID, html);
@@ -121,7 +143,6 @@ async function syncChannelWeekMenu(bot, adminToken, pool) {
     return;
   }
 
-  // only edit when something grew (more selves or more programs)
   if (selfCount < state.selfCount) {
     console.log("[CRON] week menu selfCount decreased, skip edit");
     return;
@@ -159,6 +180,8 @@ async function notifyNewlyOpenedSelves(bot, adminToken, pool) {
   const state = await getChannelNotifyState(pool, weekStartDate);
   const notifiedSet = new Set(state.ids);
   const dayCounts = { ...(state.dayCounts || {}) };
+  const messageIds = { ...(state.messageIds || {}) };
+  let summaryMessageId = state.summaryMessageId || null;
 
   let me;
   try {
@@ -175,32 +198,78 @@ async function notifyNewlyOpenedSelves(bot, adminToken, pool) {
     return;
   }
 
+  const nextCounts = { ...dayCounts, ...dayCountsFromOpened(opened) };
+  const summaryText = buildWeekSummaryText(weekFa, statuses, me.username);
+
+  async function saveNotifyState(extra = {}) {
+    await setChannelNotifyState(pool, weekStartDate, {
+      summarySent: true,
+      summaryMessageId,
+      ids: [...notifiedSet],
+      dayCounts,
+      messageIds,
+      ...extra,
+    });
+  }
+
   if (!state.summarySent) {
     if (state.ids.length > 0) {
-      const mergedCounts = { ...dayCounts, ...dayCountsFromOpened(opened) };
-      await setChannelNotifyState(pool, weekStartDate, {
-        summarySent: true,
-        ids: state.ids,
-        dayCounts: mergedCounts,
-      });
+      Object.assign(dayCounts, nextCounts);
+      for (const id of state.ids) notifiedSet.add(id);
+      await saveNotifyState();
       console.log("[CRON] channel summary skipped (legacy ids present), marked summarySent");
       return;
     }
 
-    const text = buildWeekSummaryText(weekFa, statuses, me.username);
-    await bot.sendMessage(config.CHANNEL_ID, text, { parse_mode: "HTML", disable_web_page_preview: true });
-
-    const openIds = opened.map((s) => s.self.id);
-    await setChannelNotifyState(pool, weekStartDate, {
-      summarySent: true,
-      ids: openIds,
-      dayCounts: dayCountsFromOpened(opened),
+    const msg = await bot.sendMessage(config.CHANNEL_ID, summaryText, {
+      parse_mode: "HTML",
+      disable_web_page_preview: true,
     });
-    console.log("[CRON] channel week summary ✅ open=", openIds.join(","));
+    summaryMessageId = msg?.message_id || null;
+    for (const { self, daysFa } of opened) {
+      notifiedSet.add(self.id);
+      dayCounts[self.id] = daysFa.length;
+    }
+    await saveNotifyState();
+    console.log("[CRON] channel week summary ✅ open=", [...notifiedSet].join(","));
     return;
   }
 
-  let stateDirty = false;
+  if (countsChanged(state.dayCounts, nextCounts)) {
+    try {
+      if (summaryMessageId) {
+        await bot.editMessageText(summaryText, {
+          chat_id: config.CHANNEL_ID,
+          message_id: summaryMessageId,
+          parse_mode: "HTML",
+          disable_web_page_preview: true,
+        });
+        console.log("[CRON] channel week summary edited ✅");
+      } else {
+        const msg = await bot.sendMessage(config.CHANNEL_ID, summaryText, {
+          parse_mode: "HTML",
+          disable_web_page_preview: true,
+        });
+        summaryMessageId = msg?.message_id || null;
+        console.log("[CRON] channel week summary posted (no prior id) ✅ msg=", summaryMessageId);
+      }
+    } catch (e) {
+      console.error("[CRON] channel week summary update failed:", e.message);
+      if (/message to edit not found|message can't be edited/i.test(e.message || "")) {
+        try {
+          const msg = await bot.sendMessage(config.CHANNEL_ID, summaryText, {
+            parse_mode: "HTML",
+            disable_web_page_preview: true,
+          });
+          summaryMessageId = msg?.message_id || summaryMessageId;
+          console.log("[CRON] channel week summary re-posted ✅ msg=", summaryMessageId);
+        } catch (sendErr) {
+          console.error("[CRON] channel week summary re-post failed:", sendErr.message);
+        }
+      }
+    }
+  }
+
   for (const { self, daysFa } of opened) {
     const count = daysFa.length;
     const isNew = !notifiedSet.has(self.id);
@@ -209,7 +278,6 @@ async function notifyNewlyOpenedSelves(bot, adminToken, pool) {
 
     if (!isNew && !hasTrackedCount) {
       dayCounts[self.id] = count;
-      stateDirty = true;
       continue;
     }
 
@@ -217,34 +285,32 @@ async function notifyNewlyOpenedSelves(bot, adminToken, pool) {
     if (!isNew && !expanded) continue;
 
     try {
+      const prevMsgId = messageIds[self.id];
+      if (prevMsgId) {
+        await bot.deleteMessage(config.CHANNEL_ID, prevMsgId).catch(() => {});
+      }
+
       const text = buildSelfOpenedText(self, weekFa, daysFa, me.username, { updated: expanded });
-      await bot.sendMessage(config.CHANNEL_ID, text, { parse_mode: "HTML", disable_web_page_preview: true });
+      const msg = await bot.sendMessage(config.CHANNEL_ID, text, {
+        parse_mode: "HTML",
+        disable_web_page_preview: true,
+      });
+      if (msg?.message_id) messageIds[self.id] = msg.message_id;
       notifiedSet.add(self.id);
       dayCounts[self.id] = count;
-      await setChannelNotifyState(pool, weekStartDate, {
-        summarySent: true,
-        ids: [...notifiedSet],
-        dayCounts,
-      });
-      stateDirty = false;
       console.log("[CRON] channel self", expanded ? "updated" : "opened", "✅", self.id, self.title, `days ${prevCount}→${count}`);
     } catch (e) {
       console.error("[CRON] channel self notify failed:", self.id, e.message);
     }
   }
-  if (stateDirty) {
-    await setChannelNotifyState(pool, weekStartDate, {
-      summarySent: true,
-      ids: [...notifiedSet],
-      dayCounts,
-    });
-  }
+
+  await saveNotifyState();
 }
 
 export function startAutoReserve(pool, bot) {
   // every sunday at 20:18
   cron.schedule(
-    "18 20 * * 0",
+    "34 20 * * 0",
     async () => {
       console.log("[REMIND] weekly tick", new Date().toISOString());
       try {
@@ -286,7 +352,7 @@ export function startAutoReserve(pool, bot) {
 
       console.log("[CRON] week:", result.weekStartDate, "isNewWeek:", result.isNewWeek);
 
-      const users = await getAutoReserveUsers(pool);
+      const users = await getAutoReserveUsers(pool, result.weekStartDate);
       console.log("[CRON] auto users:", users.length);
       await reserveForUsers(users, result.weekStartDate, pool, bot, adminToken);
 

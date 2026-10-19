@@ -34,7 +34,10 @@ function buildOffReminderText() {
   return `<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> <b>رزرو خودکار شما خاموش است</b>
 
 این هفته برای شما رزرو انجام نمی‌شود.
-اگر می‌خواهید ربات براتون رزرو کند، از تنظیمات رزرو خودکار را روشن کنید.`;
+اگر می‌خواهید ربات براتون رزرو کند، از تنظیمات رزرو خودکار را روشن کنید.
+
+<tg-emoji emoji-id="5879501875341955281">ℹ️</tg-emoji> این پیام جهت یادآوری رزرو غذای این هفته است.
+اگر مشکلی در تنظیمات یا اولویت‌ها دارید، از منوی ربات آن‌ها را تغییر دهید.`;
 }
 
 function buildOnReminderText({ creditToman, forceOn, waitTitles, dayCount, missingFoods, missingDays }) {
@@ -44,12 +47,12 @@ function buildOnReminderText({ creditToman, forceOn, waitTitles, dayCount, missi
     const gaps = [];
     if (missingFoods) gaps.push("اولویت غذایی");
     if (missingDays) gaps.push("روزهای هفته");
-    parts.push(
-      `<tg-emoji emoji-id="5818705028424141605">⚙️</tg-emoji> <b>تنظیمات رزرو ناقص است</b>
+    return `<tg-emoji emoji-id="5818705028424141605">⚙️</tg-emoji> <b>تنظیمات رزرو ناقص است</b>
 رزرو خودکار روشن است، ولی ${gaps.join(" و ")} را انتخاب نکرده‌اید.
-اگر می‌خواهید ربات براتون رزرو کند، از منوی اصلی تنظیمات را تکمیل کنید.`,
-    );
-    return parts.join("\n\n");
+اگر می‌خواهید ربات براتون رزرو کند، از منوی اصلی تنظیمات را تکمیل کنید.
+
+<tg-emoji emoji-id="5879501875341955281">ℹ️</tg-emoji> این پیام جهت یادآوری رزرو غذای این هفته است.
+اگر مشکلی در تنظیمات یا اولویت‌ها دارید، از منوی ربات آن‌ها را تغییر دهید.`;
   }
 
   if (creditToman != null) {
@@ -66,7 +69,10 @@ function buildOnReminderText({ creditToman, forceOn, waitTitles, dayCount, missi
 • رزرو خودکار: <b>روشن</b>
 • رزرو اجباری غذای روز: <b>${forceOn ? "روشن" : "خاموش"}</b>
 • سلف‌های شروع رزرو: <b>${waitTitles}</b>
-• تعداد روز رزرو در هفته: <b>${dayCount.toLocaleString("fa-IR")}</b> روز`,
+• تعداد روز رزرو در هفته: <b>${dayCount.toLocaleString("fa-IR")}</b> روز
+
+<tg-emoji emoji-id="5879501875341955281">ℹ️</tg-emoji> این پیام جهت یادآوری رزرو غذای این هفته است.
+اگر مشکلی در تنظیمات یا اولویت‌ها دارید، از منوی ربات آن‌ها را تغییر دهید.`,
   );
 
   return parts.join("\n\n");
