@@ -54,10 +54,17 @@ async function initDb() {
         wait_selves JSON DEFAULT NULL,
         last_checked_program DATETIME DEFAULT NULL,
         last_error_at DATETIME DEFAULT NULL,
+        reserved_days JSON DEFAULT NULL,
 
         PRIMARY KEY (id)
       ) ENGINE=InnoDB;
     `);
+
+    const [reservedDaysCol] = await pool.query(`SHOW COLUMNS FROM users LIKE 'reserved_days'`);
+    if (!reservedDaysCol.length) {
+      await pool.query(`ALTER TABLE users ADD COLUMN reserved_days JSON DEFAULT NULL`);
+      console.log("✅ added users.reserved_days");
+    }
 
     console.log("✅ MySQL connected");
   } catch (err) {

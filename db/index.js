@@ -1,5 +1,44 @@
 import { ensureEncrypted } from "../utils/cypto.js";
 
+function sameWeekKey(a, b) {
+  if (!a || !b) return false;
+  return String(a).slice(0, 10) === String(b).slice(0, 10);
+}
+
+function parseJson(value, fallback) {
+  if (value == null || value === "") return fallback;
+  if (typeof value !== "string") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
+
+function readReservedDaysState(raw, weekStartDate) {
+  const state = parseJson(raw, null);
+  if (!sameWeekKey(state?.week, weekStartDate)) {
+    return { week: weekStartDate, days: [], attempts: {} };
+  }
+  const days = Array.isArray(state?.days) ? state.days.map(String) : [];
+  const attempts = {};
+  if (state?.attempts && typeof state.attempts === "object") {
+    for (const [k, v] of Object.entries(state.attempts)) {
+      const n = Number(v);
+      if (k && Number.isFinite(n) && n > 0) attempts[k] = n;
+    }
+  }
+  return { week: weekStartDate, days, attempts };
+}
+
+export function getPendingReserveDays(user, weekStartDate) {
+  const wanted = Array.isArray(user?.days) ? user.days.filter((d) => d?.english) : [];
+  if (!wanted.length) return [];
+  if (sameWeekKey(user?.last_checked_program, weekStartDate)) return [];
+  const reserved = new Set(readReservedDaysState(user?.reserved_days, weekStartDate).days);
+  return wanted.filter((d) => !reserved.has(d.english));
+}
+
 export async function getUser(id, pool) {
   const [rows] = await pool.query("SELECT * FROM users WHERE id = ?", [id]);
   return rows[0];
@@ -39,43 +78,45 @@ WHERE username IS NOT NULL
   return rows;
 }
 
-export async function getAutoReserveUsers(pool) {
-  const [rows] = await pool.query(`
-SELECT users.*
+export async function getAutoReserveUsers(pool, weekStartDate) {
+  const weekKey = String(weekStartDate || "").slice(0, 10);
+  if (!weekKey) return [];
+
+  const [rows] = await pool.query(
+    `
+SELECT *
 FROM users
-JOIN system_state
-  ON system_state.\`key\` = 'last_reserved_week'
-WHERE users.auto_reserve = 1
-
-  AND users.username IS NOT NULL
-  AND users.username <> ''
-  AND users.food_priority IS NOT NULL
-  AND users.food_priority <> ''
-
+WHERE auto_reserve = 1
+  AND username IS NOT NULL
+  AND username <> ''
+  AND food_priority IS NOT NULL
+  AND food_priority <> ''
   AND (
-    users.last_checked_program IS NULL
-    OR users.last_checked_program <> DATE(system_state.value)
+    last_checked_program IS NULL
+    OR DATE(last_checked_program) <> ?
+  )
+  `,
+    [weekKey],
   );
-  `);
 
-  return rows.map((u) => ({
-    id: u.id,
-    username: u.username,
-    password: u.password,
-    access_token: u.access_token,
-    created_at: u.created_at,
-    food_priority: typeof u.food_priority === "string" ? JSON.parse(u.food_priority || "[]") : u.food_priority || [],
-    days: typeof u.days === "string" ? JSON.parse(u.days || "[]") : u.days || [],
-    force_reserve: Number(u.force_reserve) === 1,
-    wait_selves: (() => {
-      try {
-        const v = typeof u.wait_selves === "string" ? JSON.parse(u.wait_selves || "[1]") : u.wait_selves;
-        return Array.isArray(v) && v.length ? v.map(Number) : [1];
-      } catch {
-        return [1];
-      }
-    })(),
-  }));
+  return rows
+    .map((u) => {
+      const wait = parseJson(u.wait_selves, [1]);
+      return {
+        id: u.id,
+        username: u.username,
+        password: u.password,
+        access_token: u.access_token,
+        created_at: u.created_at,
+        last_checked_program: u.last_checked_program,
+        reserved_days: parseJson(u.reserved_days, null),
+        food_priority: parseJson(u.food_priority, []) || [],
+        days: parseJson(u.days, []) || [],
+        force_reserve: Number(u.force_reserve) === 1,
+        wait_selves: Array.isArray(wait) && wait.length ? wait.map(Number) : [1],
+      };
+    })
+    .filter((u) => getPendingReserveDays(u, weekStartDate).length > 0);
 }
 
 export async function setAutoReserve(pool, userId, enabled) {
@@ -106,15 +147,10 @@ export async function setLastReservedWeek(pool, weekStartDate) {
   );
 }
 
-function sameWeekKey(a, b) {
-  if (!a || !b) return false;
-  return String(a).slice(0, 10) === String(b).slice(0, 10);
-}
-
 export async function getChannelNotifyState(pool, weekStartDate) {
   const [rows] = await pool.query(`SELECT value FROM system_state WHERE \`key\`='channel_notified_selves'`);
   const raw = rows[0]?.value;
-  const empty = { summarySent: false, ids: [], dayCounts: {} };
+  const empty = { summarySent: false, summaryMessageId: null, ids: [], dayCounts: {}, messageIds: {} };
   if (!raw) return empty;
   try {
     const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
@@ -128,13 +164,31 @@ export async function getChannelNotifyState(pool, weekStartDate) {
         if (Number.isFinite(id) && Number.isFinite(n)) dayCounts[id] = n;
       }
     }
-    return { summarySent: !!parsed?.summarySent, ids, dayCounts };
+    const messageIds = {};
+    if (parsed?.messageIds && typeof parsed.messageIds === "object") {
+      for (const [k, v] of Object.entries(parsed.messageIds)) {
+        const id = Number(k);
+        const mid = Number(v);
+        if (Number.isFinite(id) && Number.isFinite(mid)) messageIds[id] = mid;
+      }
+    }
+    return {
+      summarySent: !!parsed?.summarySent,
+      summaryMessageId: parsed?.summaryMessageId != null ? Number(parsed.summaryMessageId) : null,
+      ids,
+      dayCounts,
+      messageIds,
+    };
   } catch {
     return empty;
   }
 }
 
-export async function setChannelNotifyState(pool, weekStartDate, { summarySent = false, ids = [], dayCounts = {} } = {}) {
+export async function setChannelNotifyState(
+  pool,
+  weekStartDate,
+  { summarySent = false, summaryMessageId = null, ids = [], dayCounts = {}, messageIds = {} } = {},
+) {
   const unique = [...new Set((ids || []).map(Number).filter((n) => Number.isFinite(n)))];
   const counts = {};
   for (const [k, v] of Object.entries(dayCounts || {})) {
@@ -142,10 +196,25 @@ export async function setChannelNotifyState(pool, weekStartDate, { summarySent =
     const n = Number(v);
     if (Number.isFinite(id) && Number.isFinite(n) && n > 0) counts[id] = n;
   }
+  const msgs = {};
+  for (const [k, v] of Object.entries(messageIds || {})) {
+    const id = Number(k);
+    const mid = Number(v);
+    if (Number.isFinite(id) && Number.isFinite(mid)) msgs[id] = mid;
+  }
   await pool.query(
     `REPLACE INTO system_state (\`key\`, value)
      VALUES ('channel_notified_selves', ?)`,
-    [JSON.stringify({ week: weekStartDate, summarySent: !!summarySent, ids: unique, dayCounts: counts })],
+    [
+      JSON.stringify({
+        week: weekStartDate,
+        summarySent: !!summarySent,
+        summaryMessageId: summaryMessageId != null ? Number(summaryMessageId) : null,
+        ids: unique,
+        dayCounts: counts,
+        messageIds: msgs,
+      }),
+    ],
   );
 }
 
@@ -205,6 +274,7 @@ export async function logoutUser(pool, telegramId) {
       refresh_token = NULL,
       expires_at = NULL,
       last_checked_program = NULL,
+      reserved_days = NULL,
       auto_reserve = 1
     WHERE id = ?
     `,
@@ -216,9 +286,29 @@ export async function setUserLastCheckedProgram(userId, weekDate, pool) {
   await pool.query(
     `
     UPDATE users
-    SET last_checked_program = ?
+    SET last_checked_program = ?,
+        reserved_days = ?
     WHERE id = ?
     `,
-    [weekDate, userId]
+    [weekDate, JSON.stringify({ week: weekDate, days: ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday"], attempts: {} }), userId]
   );
+}
+
+export async function touchReservedDay(userId, weekStartDate, dayEnglish, pool, { bump = false, done = false } = {}) {
+  if (!userId || !weekStartDate || !dayEnglish) return { attempt: 1, state: null };
+
+  const [rows] = await pool.query(`SELECT reserved_days, last_checked_program FROM users WHERE id = ?`, [userId]);
+  const row = rows[0];
+  if (!row) return { attempt: 1, state: null };
+  if (sameWeekKey(row.last_checked_program, weekStartDate)) {
+    const state = { week: weekStartDate, days: ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday"], attempts: {} };
+    return { attempt: 1, state };
+  }
+
+  const state = readReservedDaysState(row.reserved_days, weekStartDate);
+  if (bump) state.attempts[dayEnglish] = (Number(state.attempts[dayEnglish]) || 0) + 1;
+  if (done && !state.days.includes(dayEnglish)) state.days.push(dayEnglish);
+
+  await pool.query(`UPDATE users SET reserved_days = ? WHERE id = ?`, [JSON.stringify(state), userId]);
+  return { attempt: Number(state.attempts[dayEnglish]) || 1, state };
 }

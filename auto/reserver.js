@@ -1,5 +1,5 @@
 import { fetchUserProfile, getSelfWeekPrograms, isBadCredentials, isInvalidToken, loginUser, reserveFood } from "../api/services.js";
-import { logoutUser, saveSession, setUserLastCheckedProgram } from "../db/index.js";
+import { getPendingReserveDays, logoutUser, saveSession, setUserLastCheckedProgram, touchReservedDay } from "../db/index.js";
 import {
   areSelvesReady,
   buildHomeKeyboard,
@@ -14,6 +14,7 @@ import {
 } from "../utils/index.js";
 
 const CONCURRENCY = 5;
+const MAX_DAY_ATTEMPTS = 3;
 const BAD_PASSWORD_MSG = `<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> ورود به سماد با رمز ذخیره‌شده ممکن نشد.
 
 رمز عبور سماد اشتباه است؛ لطفا دوباره در ربات لاگین کنید.`;
@@ -94,9 +95,6 @@ async function fetchProgramsBySelf(token, weekStartDate, gender) {
 async function reserveForUser(user, weekStartDate, pool, bot) {
   if (!user?.username) return;
 
-  let needsRetry = false;
-  let touchedAnyDay = false;
-
   try {
     let gender = user.gender;
     let bySelf;
@@ -111,7 +109,6 @@ async function reserveForUser(user, weekStartDate, pool, bot) {
         resalt = await loginUser(user.username, user.password);
       } catch (loginErr) {
         console.error(`[AUTO] login unavailable user=${user.id}`, loginErr?.message || loginErr);
-        needsRetry = true;
         return;
       }
 
@@ -130,7 +127,6 @@ async function reserveForUser(user, weekStartDate, pool, bot) {
         return;
       } else {
         console.error(`[AUTO] login unexpected user=${user.id}`, resalt);
-        needsRetry = true;
         return;
       }
     }
@@ -142,9 +138,15 @@ async function reserveForUser(user, weekStartDate, pool, bot) {
     }
     console.log(`AutoReserve user ${user.id} gender=${gender} mainSelf=${getReserveSelfIds(gender)[0]} programs=${allPrograms.length}`);
 
-    const uDays = normalizeArray(user?.days);
+    const uDays = getPendingReserveDays(user, weekStartDate);
     const uFoods = normalizeArray(user?.food_priority);
     const forceReserve = !!user?.force_reserve;
+
+    if (!uDays.length) {
+      console.log(`[RESERVE] user=${user.id} no pending days for week=${String(weekStartDate).slice(0, 10)}, skip`);
+      await setUserLastCheckedProgram(user.id, weekStartDate, pool);
+      return;
+    }
 
     for (let dayIndex = 0; dayIndex < uDays.length; dayIndex++) {
       const day = uDays[dayIndex];
@@ -152,12 +154,14 @@ async function reserveForUser(user, weekStartDate, pool, bot) {
       const dayProgramsAll = allPrograms.filter((p) => p.dayTranslated === day.english);
       if (dayProgramsAll.length === 0) {
         console.log(`[RESERVE] user=${user.id} day=${day.title} not open yet, retry later`);
-        needsRetry = true;
         continue;
       }
 
-      touchedAnyDay = true;
+      const { attempt, state: bumped } = await touchReservedDay(user.id, weekStartDate, day.english, pool, { bump: true });
+      user.reserved_days = bumped;
+      const attemptLabel = `تلاش ${attempt.toLocaleString("fa-IR")} از ${MAX_DAY_ATTEMPTS.toLocaleString("fa-IR")}`;
       let dayDone = false;
+      let dayNeedsRetry = false;
       let lastFailMessage = null;
       let triedAnyPriority = false;
       let onlyFullOrMissing = true;
@@ -247,22 +251,41 @@ async function reserveForUser(user, weekStartDate, pool, bot) {
             : lastFailMessage && !onlyFullOrMissing
               ? `<blockquote>${lastFailMessage}</blockquote>`
               : `<blockquote>همه گزینه‌های قابل رزرو پر بودند یا در دسترس نبودند.</blockquote>`;
-        const nextHint = isLastDay ? "" : "\nدر حال رفتن به روز بعد…";
-        bot.sendMessage(user.id, `<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> رزرو غذا برای روز <b>${day.title}</b> انجام نشد\n${detail}${nextHint}`, {
-          parse_mode: "HTML",
-        });
 
-        if (!onlyFullOrMissing && triedAnyPriority) needsRetry = true;
+        if (!onlyFullOrMissing && triedAnyPriority && attempt < MAX_DAY_ATTEMPTS) {
+          dayNeedsRetry = true;
+        }
+
+        const retryHint = dayNeedsRetry
+          ? `\nدوباره تلاش می‌شود (${attemptLabel}).`
+          : attempt >= MAX_DAY_ATTEMPTS && triedAnyPriority && !onlyFullOrMissing
+            ? `\n${attemptLabel}: دیگر برای این روز تلاش نمی‌شود.`
+            : "";
+        const nextHint = isLastDay ? "" : "\nدر حال رفتن به روز بعد…";
+        bot.sendMessage(
+          user.id,
+          `<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> رزرو غذا برای روز <b>${day.title}</b> انجام نشد
+<code>${attemptLabel}</code>
+${detail}${retryHint}${nextHint}`,
+          { parse_mode: "HTML" },
+        );
+      }
+
+      if (dayDone || !dayNeedsRetry) {
+        const { state } = await touchReservedDay(user.id, weekStartDate, day.english, pool, { done: true });
+        user.reserved_days = state;
+        console.log(`[RESERVE] user=${user.id} day=${day.title} marked done success=${dayDone} attempt=${attempt}`);
       }
 
       await sleep(100);
     }
 
-    if (touchedAnyDay && !needsRetry) {
+    if (!getPendingReserveDays(user, weekStartDate).length) {
       await setUserLastCheckedProgram(user.id, weekStartDate, pool);
+    } else {
+      console.log(`[RESERVE] user=${user.id} partial week, pending remain, retry later`);
     }
   } catch (e) {
-    needsRetry = true;
     console.error(`[AUTO] ERROR user=${user.id}`, e?.code || "", e?.message || e);
   }
 }
@@ -272,11 +295,10 @@ export async function reserveForUsers(users, weekStartDate, pool, bot, adminToke
   console.log(`[RESERVE] start users=${list.length} concurrency=${CONCURRENCY} (priority first, then created_at)`);
 
   const readyCache = new Map();
-  async function userSelvesReady(user, gender) {
+  async function userSelvesReady(user, gender, pendingDays) {
     const ids = resolveWaitSelves(user.wait_selves, gender);
-    const days = normalizeArray(user?.days)
-      .map((d) => d?.english)
-      .filter(Boolean);
+    const days = pendingDays.map((d) => d?.english).filter(Boolean);
+    if (!days.length) return false;
     const key = `${gender}:${ids
       .slice()
       .sort((a, b) => a - b)
@@ -294,6 +316,12 @@ export async function reserveForUsers(users, weekStartDate, pool, bot, adminToke
     console.log(`[RESERVE] batch ${Math.floor(i / CONCURRENCY) + 1} size=${chunk.length} ids=${chunk.map((u) => u.id).join(",")}`);
     await Promise.all(
       chunk.map(async (user) => {
+        const pendingDays = getPendingReserveDays(user, weekStartDate);
+        if (!pendingDays.length) {
+          console.log(`[RESERVE] user=${user.id} already complete for week, skip`);
+          return;
+        }
+
         let gender = "مرد";
         try {
           gender = await detectUserGender(user.access_token);
@@ -309,13 +337,10 @@ export async function reserveForUsers(users, weekStartDate, pool, bot, adminToke
         }
         user.gender = gender;
 
-        const ready = await userSelvesReady(user, gender);
+        const ready = await userSelvesReady(user, gender, pendingDays);
         if (!ready) {
-          const days = normalizeArray(user?.days)
-            .map((d) => d?.english)
-            .filter(Boolean);
           console.log(
-            `[RESERVE] user=${user.id} gender=${gender} wait_selves not ready selves=[${resolveWaitSelves(user.wait_selves, gender).join(",")}] days=[${days.join(",")}], skip`,
+            `[RESERVE] user=${user.id} gender=${gender} wait_selves not ready selves=[${resolveWaitSelves(user.wait_selves, gender).join(",")}] pending=[${pendingDays.map((d) => d.english).join(",")}], skip`,
           );
           return;
         }
