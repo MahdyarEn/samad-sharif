@@ -15,6 +15,7 @@ export function buildHomeKeyboard(isLogined) {
         { text: "انتخاب روز های رزرو", callback_data: `MENU_RESERVE`, icon_custom_emoji_id: "5890937706803894250" },
         { text: "انتخاب اولویت غذا", callback_data: `MENU_PREFERENCE`, icon_custom_emoji_id: "6041874690220233085" },
       ],
+      [{ text: "وضعیت رزروها", callback_data: "MENU_STATUS", icon_custom_emoji_id: "6044117517847236354" }],
       [
         { text: "حساب کاربری", callback_data: "MENU_ACCOUNT", icon_custom_emoji_id: "6035084557378654059" },
         { text: "تنظیمات", callback_data: "MENU_SETTINGS", icon_custom_emoji_id: "6032742198179532882" },
@@ -367,6 +368,100 @@ export function getNextSaturday() {
   return `${saturday.getUTCFullYear()}-${String(saturday.getUTCMonth() + 1).padStart(2, "0")}-${String(saturday.getUTCDate()).padStart(2, "0")}+00:00:00`;
 }
 
+export function getCurrentWeekSaturday() {
+  const now = new Date();
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const back = (d.getUTCDay() + 1) % 7;
+  d.setUTCDate(d.getUTCDate() - back);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}+00:00:00`;
+}
+
+export function getDayReserves(weekDay) {
+  const out = [];
+  for (const meal of weekDay?.mealTypes || []) {
+    if (meal?.reserve?.selected) out.push({ mealName: meal.name, reserve: meal.reserve });
+  }
+  return out;
+}
+
+export function getUnconsumedStatusDays(weekDays) {
+  const allowed = new Set(DAYS.map((d) => d.english));
+  return (weekDays || [])
+    .filter((d) => allowed.has(d.day))
+    .filter((day) => getDayReserves(day).some(({ reserve }) => !reserve?.consumed));
+}
+
+export function buildStatusWeekText(weekStartDate, weekDays) {
+  const weekFa = formatLastCheckedProgram(weekStartDate);
+  const unconsumed = getUnconsumedStatusDays(weekDays);
+  const dayNames = unconsumed.map((d) => d.dayTranslated || d.day).filter(Boolean);
+
+  if (!dayNames.length) {
+    return `<tg-emoji emoji-id="5431897022456145283">📆</tg-emoji> <b>وضعیت رزروهای هفته</b>
+
+شروع هفته: <b>${weekFa}</b>
+
+روز مصرف‌نشده‌ای برای این هفته وجود ندارد.`;
+  }
+
+  return `<tg-emoji emoji-id="5431897022456145283">📆</tg-emoji> <b>وضعیت رزروهای هفته</b>
+
+شروع هفته: <b>${weekFa}</b>
+روزهای مصرف‌نشده: <b>${dayNames.join("، ")}</b>
+
+یک روز را انتخاب کنید <tg-emoji emoji-id="5470177992950946662">👇</tg-emoji>`;
+}
+
+export function buildStatusDaysKeyboard(weekDays) {
+  const rows = getUnconsumedStatusDays(weekDays).map((day) => [
+    {
+      text: day.dayTranslated || day.day,
+      icon_custom_emoji_id: "5774022692642492953",
+      callback_data: `STATUS_DAY:${day.date}`,
+    },
+  ]);
+  rows.push([{ text: "بازگشت", callback_data: "BACK", icon_custom_emoji_id: "6039539366177541657" }]);
+  return { inline_keyboard: rows };
+}
+
+export function buildStatusDayText(weekDay) {
+  const reserves = getDayReserves(weekDay);
+  const dateFa = weekDay?.dateJStr || formatLastCheckedProgram(weekDay?.date);
+  const dayTitle = weekDay?.dayTranslated || "";
+
+  if (!reserves.length) {
+    return `<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> <b>${dayTitle}</b> · <code>${dateFa}</code>
+
+برای این روز رزروی ثبت نشده است.`;
+  }
+
+  const blocks = reserves.map(({ mealName, reserve }) => {
+    const foodName = String(reserve.foodNames || "").replace(/\|$/g, "").trim() || "-";
+    const beside = String(reserve.besideFoodNames || "").replace(/\|$/g, "").trim();
+    const price = Number(reserve.price);
+    const priceLabel = Number.isFinite(price) ? `${Math.round(price / 10).toLocaleString("en-US")} تومان` : "-";
+    const consumed = reserve.consumed ? "مصرف شده" : "مصرف نشده";
+    return `<tg-emoji emoji-id="5359678839591018693">🍽</tg-emoji> <b>${mealName || "وعده"}</b>
+• غذا: <b>${foodName}</b>${beside ? `\n• غذای همراه: ${beside}` : ""}
+• سلف: <b>${reserve.selfName || "-"}</b>
+• قیمت: <b>${priceLabel}</b>
+• وضعیت: <b>${consumed}</b>`;
+  });
+
+  return `<tg-emoji emoji-id="5431897022456145283">📆</tg-emoji> <b>${dayTitle}</b> · <code>${dateFa}</code>
+
+${blocks.join("\n\n")}`;
+}
+
+export function statusDayBackKeyboard() {
+  return {
+    inline_keyboard: [
+      [{ text: "بازگشت به روزها", callback_data: "MENU_STATUS", icon_custom_emoji_id: "6039539366177541657" }],
+      [{ text: "منوی اصلی", callback_data: "BACK", icon_custom_emoji_id: "6042137469204303531" }],
+    ],
+  };
+}
+
 export function flattenWeekPrograms(apiData) {
   const list = apiData?.payload?.selfWeekPrograms;
   if (!Array.isArray(list)) return [];
@@ -413,11 +508,15 @@ export async function areSelvesReady(token, weekStartDate, selfIds, dayEnglishes
   const days = [...new Set((dayEnglishes || []).map(String).filter(Boolean))];
   if (!ids.length || !days.length) return false;
 
+  let common = null;
   for (const selfId of ids) {
     const res = await getSelfWeekPrograms(token, weekStartDate, selfId);
     if (res?.status !== 200) return false;
     const visible = getVisibleDaySet(res.data);
-    if (!days.every((day) => visible.has(day))) return false;
+    const open = new Set(days.filter((day) => visible.has(day)));
+    if (!open.size) return false;
+    common = common === null ? open : new Set([...common].filter((day) => open.has(day)));
+    if (!common.size) return false;
   }
   return true;
 }
@@ -583,10 +682,10 @@ export function isPriorityUser(userId) {
 
 export function buildWelcomeMessage(isPriority) {
   const priorityBlock = isPriority
-    ? `<h3><tg-emoji emoji-id="5843553939672274145">⚡️</tg-emoji> اولویت ویژه رزرو</h3>
+    ? `<hr/>
+<h3><tg-emoji emoji-id="5843553939672274145">⚡️</tg-emoji> اولویت ویژه رزرو</h3>
 <aside><b><mark>اکانت شما جزو ورودی کامپیوتر ۱۴۰۴ شناسایی شد و اولویت رزرو غذا برای شما از سایر کاربران بیشتر است.</mark></b></aside>`
-    : `<h3><tg-emoji emoji-id="5879501875341955281">ℹ️</tg-emoji> درباره اولویت رزرو</h3>
-<aside><b><mark>این ربات برای دانشجویان ورودی ۱۴۰۴ دانشکده کامپیوتر نوشته شده و آن‌ها در اولویت رزرو زودتری هستند. چون ماهیت ربات رزرو سریع غذاهای کم‌ظرفیت است، ابتدا رزرو کاربران نام‌برده انجام می‌شود و بعد به‌ترتیب تاریخ عضویت.</mark></b></aside>`;
+    : "";
 
   return `<h2>سلام</h2>
 <p>به ربات رزرو خودکار غذای سامانه سماد (ویژه دانشجویان دانشگاه صنعتی شریف) خوش آمدید</p>
@@ -604,7 +703,6 @@ export function buildWelcomeMessage(isPriority) {
 <p>توجه: تنظیمات فقط یک‌بار انجام می‌شود و در صورت نیاز، در هر زمان قابل تغییر است.</p>
 <p><tg-emoji emoji-id="5242628160297641831">🔔</tg-emoji> ربات نتیجه هر تلاش برای رزرو (موفق یا ناموفق) را به‌صورت پیام به شما اطلاع می‌دهد.</p>
 <p><tg-emoji emoji-id="5434144690511290129">📢</tg-emoji> برای اطلاع‌رسانی از آغاز رزرو غذا، عضو کانال زیر شوید:<br/>@Sharifsamad</p>
-<hr/>
 ${priorityBlock}
 <footer>لطفا برای ادامه، یکی از گزینه‌های زیر را انتخاب نمایید <tg-emoji emoji-id="5470177992950946662">👇</tg-emoji></footer>`;
 }
@@ -669,8 +767,10 @@ export function getSelvesWithProgram(bySelf) {
 
 export function buildWeekMenuFingerprint(bySelf) {
   return SAMAD_SELVES.map((s) => {
-    const n = (bySelf?.[s.id] || []).length;
-    return n > 0 ? `${s.id}:${n}` : null;
+    const list = bySelf?.[s.id] || [];
+    if (!list.length) return null;
+    const open = list.filter((p) => p?.hideInPanel === false).length;
+    return `${s.id}:${list.length}:${open}`;
   })
     .filter(Boolean)
     .join("|");
@@ -684,14 +784,21 @@ export function buildWeekMenuRichMessage(weekStartDate, bySelf) {
   const allHidden = hasAny && all.every((p) => p?.hideInPanel !== false);
   const anyHidden = hasAny && all.some((p) => p?.hideInPanel !== false);
   const withProgram = getSelvesWithProgram(bySelf);
+  const weekComplete =
+    SAMAD_SELVES.length > 0 &&
+    SAMAD_SELVES.every((s) => (bySelf?.[s.id] || []).some((p) => p?.hideInPanel === false));
 
   const statusLine = !hasAny
     ? `<aside><b>برای این هفته برنامه‌ای پیدا نشد.</b></aside>`
-    : allHidden
-      ? `<aside><b>درحال حاضر در سماد قابل رزرو نمی‌باشد</b></aside>`
-      : anyHidden
-        ? `<aside><b>درحال حاضر برخی از سلف‌ها در سماد قابل رزرو نمی‌باشد</b></aside>`
-        : `<aside><b>قابل رزرو از طریق سماد</b></aside>`;
+    : weekComplete
+      ? `<aside><b>قابل رزرو از طریق سماد</b></aside>`
+      : allHidden
+        ? `<aside><b>درحال حاضر در سماد قابل رزرو نمی‌باشد</b></aside>`
+        : anyHidden || withProgram.length < SAMAD_SELVES.length
+          ? `<aside><b>درحال حاضر برخی از سلف‌ها در سماد قابل رزرو نمی‌باشد</b></aside>`
+          : `<aside><b>قابل رزرو از طریق سماد</b></aside>`;
+
+  const updateAside = weekComplete ? "" : `<aside><b>این لیست به محض به‌روزرسانی سایر سلف‌ها، خودکار به‌روز می‌شود.</b></aside>`;
 
   const dayBlocks = DAYS.map((day) => {
     const rows = [];
@@ -722,7 +829,7 @@ ${rows.join("\n")}
 <p>شروع هفته: <b>${escapeRichHtml(weekFa)}</b> · <code>${escapeRichHtml(weekEn)}</code></p>
 <p>سلف‌های دارای برنامه: <b>${withProgram.length}</b> از ${SAMAD_SELVES.length}</p>
 ${statusLine}
-<aside><b>این لیست به محض به‌روزرسانی سایر سلف‌ها، خودکار به‌روز می‌شود.</b></aside>
+${updateAside}
 <hr/>
 ${dayBlocks}
 <hr/>

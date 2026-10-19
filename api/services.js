@@ -69,3 +69,21 @@ export async function fetchUserProfile(access_token) {
     })
     .then(({ data }) => data);
 }
+
+export async function fetchUserReserves(token, weekStartDate) {
+  return api.get(`/rest/reserves?weekStartDate=${weekStartDate}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    validateStatus: () => true,
+  });
+}
+
+export async function fetchForgetCardCode(token, reserveId, count = 1) {
+  return api.get(`/rest/forget-card-codes/print?reserveId=${reserveId}&count=${count}&dailySale=false`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    validateStatus: () => true,
+  });
+}

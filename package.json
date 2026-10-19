@@ -25,6 +25,7 @@
     "jalaali-js": "^2.0.1",
     "mysql2": "^3.16.0",
     "node-cron": "^4.2.1",
-    "node-telegram-bot-api": "^0.67.0"
+    "node-telegram-bot-api": "^0.67.0",
+    "qrcode": "^1.5.4"
   }
 }

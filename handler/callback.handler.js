@@ -1,6 +1,49 @@
+import QRCode from "qrcode";
 import { getUser, logoutUser, saveDays, savefoodPriority, saveSession, setAutoReserve, setForceReserve, setWaitSelves } from "../db/index.js";
-import { backKeyboard, buildAccountKeyboard, buildDaysKeyboard, buildDaysText, buildFoodKeyboard, buildHomeKeyboard, buildPreferenceText, buildSettingsKeyboard, buildSettingsText, DAYS, FOODS, normalizeArray, normalizeWaitSelves, SAMAD_SELVES } from "../utils/index.js";
-import { fetchUserProfile, isBadCredentials, isInvalidToken, loginUser } from "../api/services.js";
+import {
+  backKeyboard,
+  buildAccountKeyboard,
+  buildDaysKeyboard,
+  buildDaysText,
+  buildFoodKeyboard,
+  buildHomeKeyboard,
+  buildPreferenceText,
+  buildSettingsKeyboard,
+  buildSettingsText,
+  buildStatusDayText,
+  buildStatusDaysKeyboard,
+  buildStatusWeekText,
+  DAYS,
+  FOODS,
+  getCurrentWeekSaturday,
+  getDayReserves,
+  getUnconsumedStatusDays,
+  normalizeArray,
+  normalizeWaitSelves,
+  SAMAD_SELVES,
+  statusDayBackKeyboard,
+} from "../utils/index.js";
+import { fetchForgetCardCode, fetchUserProfile, fetchUserReserves, isBadCredentials, isInvalidToken, loginUser } from "../api/services.js";
+
+async function ensureSamadToken(user, pool) {
+  let token = user?.access_token;
+  let probe = await fetchUserProfile(token).catch(() => null);
+  if (!isInvalidToken(probe) && probe?.payload) return { ok: true, token, user };
+
+  let login;
+  try {
+    login = await loginUser(user.username, user.password);
+  } catch (e) {
+    return { ok: false, reason: "unavailable", error: e };
+  }
+
+  if (login?.access_token) {
+    await saveSession(pool, user.id, user.username, user.password, login);
+    return { ok: true, token: login.access_token, user };
+  }
+  if (isBadCredentials(login)) return { ok: false, reason: "bad_credentials" };
+  return { ok: false, reason: "unavailable" };
+}
 
 export default async function handleCallback(bot, query, pool, userState) {
   const fromId = query.from.id;
@@ -462,6 +505,154 @@ export default async function handleCallback(bot, query, pool, userState) {
       }
       break;
     }
+    /* ================= STATUS SECTION ================= */
+    case data === "MENU_STATUS": {
+      let loadingId = null;
+      try {
+        const dbUser = await getUser(fromId, pool);
+        if (!dbUser?.username) {
+          await answer({ text: "ابتدا وارد سامانه سماد شوید", show_alert: true });
+          break;
+        }
+
+        await bot.deleteMessage(fromId, messageId).catch(() => {});
+        const loadingMsg = await bot.sendMessage(
+          fromId,
+          `<tg-emoji emoji-id="5258113901106580375">⌛️</tg-emoji> درحال دریافت وضعیت رزروها...`,
+          { parse_mode: "HTML" },
+        );
+        loadingId = loadingMsg.message_id;
+
+        const auth = await ensureSamadToken(dbUser, pool);
+        if (!auth.ok) {
+          if (auth.reason === "bad_credentials") {
+            await logoutUser(pool, fromId);
+            userState.delete(fromId);
+            await bot.editMessageText(
+              `<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> ورود به سماد با رمز ذخیره‌شده ممکن نشد.
+
+رمز عبور سماد اشتباه است؛ لطفا دوباره لاگین کنید.`,
+              {
+                chat_id: fromId,
+                message_id: loadingId,
+                parse_mode: "HTML",
+                reply_markup: buildHomeKeyboard(false),
+              },
+            );
+          } else {
+            await bot.editMessageText(`<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> سماد موقتا در دسترس نیست، بعدا دوباره تلاش کنید.`, {
+              chat_id: fromId,
+              message_id: loadingId,
+              parse_mode: "HTML",
+              reply_markup: buildHomeKeyboard(true),
+            });
+          }
+          break;
+        }
+
+        const weekStartDate = getCurrentWeekSaturday();
+        const res = await fetchUserReserves(auth.token, weekStartDate);
+        if (res?.status !== 200 || isInvalidToken(res?.data)) {
+          await bot.editMessageText(`<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> دریافت رزروها ممکن نشد، بعدا دوباره تلاش کنید.`, {
+            chat_id: fromId,
+            message_id: loadingId,
+            parse_mode: "HTML",
+            reply_markup: buildHomeKeyboard(true),
+          });
+          break;
+        }
+
+        const weekDays = res.data?.payload?.weekDays || [];
+        userState.set(fromId, {
+          statusWeek: weekStartDate,
+          statusDays: weekDays,
+          statusToken: auth.token,
+        });
+
+        await bot.editMessageText(buildStatusWeekText(weekStartDate, weekDays), {
+          chat_id: fromId,
+          message_id: loadingId,
+          parse_mode: "HTML",
+          reply_markup: buildStatusDaysKeyboard(weekDays),
+        });
+      } catch (err) {
+        console.error("[MENU_STATUS ERROR]", err);
+        if (loadingId) {
+          await bot
+            .editMessageText(`<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> دریافت وضعیت رزروها با خطا مواجه شد.`, {
+              chat_id: fromId,
+              message_id: loadingId,
+              parse_mode: "HTML",
+              reply_markup: buildHomeKeyboard(true),
+            })
+            .catch(() => {});
+        } else {
+          await answer({ text: "خطا در دریافت وضعیت رزروها", show_alert: true });
+        }
+      }
+      break;
+    }
+
+    case data.startsWith("STATUS_DAY:"): {
+      try {
+        const date = data.slice("STATUS_DAY:".length);
+        const state = userState.get(fromId);
+        const weekDays = state?.statusDays;
+        if (!Array.isArray(weekDays)) {
+          await answer({ text: "ابتدا وضعیت رزروها را باز کنید", show_alert: true });
+          break;
+        }
+
+        const weekDay = getUnconsumedStatusDays(weekDays).find((d) => d.date === date);
+        if (!weekDay) {
+          await answer({ text: "این روز مصرف‌نشده نیست یا پیدا نشد", show_alert: true });
+          break;
+        }
+
+        const text = buildStatusDayText(weekDay);
+        await bot.editMessageText(text, {
+          chat_id: fromId,
+          message_id: messageId,
+          parse_mode: "HTML",
+          reply_markup: statusDayBackKeyboard(),
+        });
+
+        const reserves = getDayReserves(weekDay).filter(({ reserve }) => !reserve?.consumed);
+        const token = state.statusToken;
+        for (const { mealName, reserve } of reserves) {
+          if (!reserve?.id || !token) continue;
+          const qrRes = await fetchForgetCardCode(token, reserve.id, reserve.selectedCount || 1);
+          const code = qrRes?.data?.payload?.forgotCardCode;
+          if (!code || code === "ERROR_NO_CODE") {
+            await bot.sendMessage(
+              fromId,
+              `<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> دریافت QR برای <b>${mealName || "وعده"}</b> ممکن نشد.`,
+              { parse_mode: "HTML" },
+            );
+            continue;
+          }
+
+          const foodName = String(reserve.foodNames || "").replace(/\|$/g, "").trim() || "-";
+          const png = await QRCode.toBuffer(String(code), { type: "png", width: 360, margin: 2 });
+          await bot.sendPhoto(
+            fromId,
+            png,
+            {
+              caption: `<tg-emoji emoji-id="5434144690511290129">🎫</tg-emoji> QR کدفراموشی ${mealName || "وعده"}
+غذا: <b>${foodName}</b>
+کد: <code>${code}</code>`,
+              parse_mode: "HTML",
+            },
+            { filename: "qr.png", contentType: "image/png" },
+          );
+        }
+      } catch (err) {
+        console.error("[STATUS_DAY ERROR]", err);
+        await answer({ text: "خطا در نمایش جزئیات روز", show_alert: true });
+      }
+      break;
+    }
+
     /* ================= HELP SECTION ================= */
     case data === "HELP":
       {
