@@ -179,6 +179,14 @@ export const FOODS = [
   { id: 122, title: "ساندویچ نرمال چیکن‌برگرذغالی باپنیر گودا(کلین‌فود)", price: 35000 },
   { id: 123, title: "ساندویچ نرمال ژامبون مرغ با نوشابه (کلین فود)", price: 64500 },
   { id: 124, title: "ساندویچ نرمال هات داگ ذغالی(کلین فود)", price: 35000 },
+
+  { id: 125, title: "پنینی دنر مرغ (کلانا)", price: 5000 },
+  { id: 126, title: "ساندویچ دنر گوشت (فست فود شریف)", price: 205000 },
+  { id: 127, title: "ساندویچ بزرگ بندری با یک ورق پنیر گودا(کلین فود)", price: 35000 },
+  { id: 128, title: "ساندویچ نرمال کالباس خشک 70%با نوشابه(کلین فود)", price: 35000 },
+  { id: 129, title: "پنه گوشت و بادمجان(کلانا)", price: 5000 },
+  { id: 130, title: "رپ بوریتوگوشت(کلانا)", price: 45000 },
+  { id: 131, title: "کلاب مرغ دودی دبل(کلانا)", price: 70000 },
 ];
 
 export function normalizeFoodName(name) {
@@ -400,9 +408,7 @@ export function getDayReserves(weekDay) {
 
 export function getUnconsumedStatusDays(weekDays) {
   const allowed = new Set(DAYS.map((d) => d.english));
-  return (weekDays || [])
-    .filter((d) => allowed.has(d.day))
-    .filter((day) => getDayReserves(day).some(({ reserve }) => !reserve?.consumed));
+  return (weekDays || []).filter((d) => allowed.has(d.day)).filter((day) => getDayReserves(day).some(({ reserve }) => !reserve?.consumed));
 }
 
 export function buildStatusWeekText(weekStartDate, weekDays) {
@@ -450,8 +456,13 @@ export function buildStatusDayText(weekDay) {
   }
 
   const blocks = reserves.map(({ mealName, reserve }) => {
-    const foodName = String(reserve.foodNames || "").replace(/\|$/g, "").trim() || "-";
-    const beside = String(reserve.besideFoodNames || "").replace(/\|$/g, "").trim();
+    const foodName =
+      String(reserve.foodNames || "")
+        .replace(/\|$/g, "")
+        .trim() || "-";
+    const beside = String(reserve.besideFoodNames || "")
+      .replace(/\|$/g, "")
+      .trim();
     const price = Number(reserve.price);
     const priceLabel = Number.isFinite(price) ? `${Math.round(price / 10).toLocaleString("en-US")} تومان` : "-";
     const consumed = reserve.consumed ? "مصرف شده" : "مصرف نشده";
@@ -469,10 +480,7 @@ ${blocks.join("\n\n")}`;
 
 export function statusDayBackKeyboard() {
   return {
-    inline_keyboard: [
-      [{ text: "بازگشت به روزها", callback_data: "MENU_STATUS", icon_custom_emoji_id: "6039539366177541657" }],
-      [{ text: "منوی اصلی", callback_data: "BACK", icon_custom_emoji_id: "6042137469204303531" }],
-    ],
+    inline_keyboard: [[{ text: "بازگشت به روزها", callback_data: "MENU_STATUS", icon_custom_emoji_id: "6039539366177541657" }], [{ text: "منوی اصلی", callback_data: "BACK", icon_custom_emoji_id: "6042137469204303531" }]],
   };
 }
 
@@ -798,9 +806,7 @@ export function buildWeekMenuRichMessage(weekStartDate, bySelf) {
   const allHidden = hasAny && all.every((p) => p?.hideInPanel !== false);
   const anyHidden = hasAny && all.some((p) => p?.hideInPanel !== false);
   const withProgram = getSelvesWithProgram(bySelf);
-  const weekComplete =
-    SAMAD_SELVES.length > 0 &&
-    SAMAD_SELVES.every((s) => (bySelf?.[s.id] || []).some((p) => p?.hideInPanel === false));
+  const weekComplete = SAMAD_SELVES.length > 0 && SAMAD_SELVES.every((s) => (bySelf?.[s.id] || []).some((p) => p?.hideInPanel === false));
 
   const statusLine = !hasAny
     ? `<aside><b>برای این هفته برنامه‌ای پیدا نشد.</b></aside>`
@@ -819,17 +825,13 @@ export function buildWeekMenuRichMessage(weekStartDate, bySelf) {
     for (const self of SAMAD_SELVES) {
       const items = (bySelf[self.id] || []).filter((p) => p?.dayTranslated === day.english && p?.foodName);
       if (!items.length) {
-        rows.push(
-          `<tr><td>-</td><td><i>فعلا بدون برنامه غذایی</i></td><td>${escapeRichHtml(self.title)}</td></tr>`,
-        );
+        rows.push(`<tr><td>-</td><td><i>فعلا بدون برنامه غذایی</i></td><td>${escapeRichHtml(self.title)}</td></tr>`);
         continue;
       }
       for (const p of items) {
         const price = Number(p.price);
         const priceLabel = Number.isFinite(price) ? `${Math.round(price / 10).toLocaleString("en-US")} تومان` : "-";
-        rows.push(
-          `<tr><td align="left">${escapeRichHtml(priceLabel)}</td><td>${escapeRichHtml(p.foodName)}</td><td>${escapeRichHtml(self.title)}</td></tr>`,
-        );
+        rows.push(`<tr><td align="left">${escapeRichHtml(priceLabel)}</td><td>${escapeRichHtml(p.foodName)}</td><td>${escapeRichHtml(self.title)}</td></tr>`);
       }
     }
     return `<h3><tg-emoji emoji-id="5431897022456145283">📅</tg-emoji> ${day.title}</h3>
