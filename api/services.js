@@ -30,8 +30,9 @@ export async function loginUser(username, password) {
     .then(({ data }) => data);
 }
 
-export async function getSelfWeekPrograms(token, weekStartDate, selfId = 1) {
+export async function getSelfWeekPrograms(token, weekStartDate, selfId = 1, options = {}) {
   return api.get(`/rest/reservations/programs/v2?selfId=${selfId}&weekStartDate=${weekStartDate}`, {
+    ...options,
     headers: {
       Authorization: `Bearer ${token}`,
     },

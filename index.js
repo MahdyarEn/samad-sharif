@@ -4,6 +4,7 @@ import config from "./config.js";
 import handleCallback from "./handler/callback.handler.js";
 import handleMessage from "./handler/message.handler.js";
 import { startAutoReserve } from "./auto/scheduler.js";
+import { startDailyMenu } from "./auto/daily-menu.js";
 import { FOODS, normalizeArray, normalizeWaitSelves, verifyTelegramWebAppData } from "./utils/index.js";
 import { saveDays, savefoodPriority, setAutoReserve, setForceReserve, setWaitSelves } from "./db/index.js";
 import express from "express";
@@ -149,6 +150,9 @@ async function startBot() {
   bot.on("callback_query", (query) => handleCallback(bot, query, pool, userState));
 
   const me = await bot.getMe();
+  await bot.setMyCommands([
+    { command: "start", description: "منوی اصلی" },
+  ]);
   console.log(`🤖 Bot started: @${me.username}`);
   return bot;
 }
@@ -157,6 +161,7 @@ async function run() {
   try {
     await initDb();
     await startBot();
+    startDailyMenu(pool, bot);
   } catch (err) {
     console.error("❌ Run failed:", err);
     process.exit(1);
