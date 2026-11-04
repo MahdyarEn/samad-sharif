@@ -39,6 +39,8 @@ const SAMAD_SELVES = [
   { id: 23, title: "کلین‌فود" },
   { id: 24, title: "کلانا" },
   { id: 25, title: "یونی‌فود" },
+  { id: 20, title: "کاله پردیس مرکزی (بیرون‌بر)" },
+  { id: 21, title: "کاله پردیس شمالی (بیرون‌بر)" },
 ];
 
 const FOOD_CATEGORIES = [
@@ -48,9 +50,13 @@ const FOOD_CATEGORIES = [
   { id: "kalana", title: "🌮 کلانا" },
   { id: "sharifi", title: "🍔 فست‌فود شریف" },
   { id: "clean", title: "🥗 کلین‌فود" },
+  { id: "central_takeaway", title: "🥡 کاله پردیس مرکزی (بیرون‌بر)" },
+  { id: "north_takeaway", title: "🥡 کاله پردیس شمالی (بیرون‌بر)" },
 ];
 
-function getFoodCategory(title = "") {
+function getFoodCategory(title = "", selfId) {
+  if (Number(selfId) === 20) return FOOD_CATEGORIES.find((c) => c.id === "central_takeaway");
+  if (Number(selfId) === 21) return FOOD_CATEGORIES.find((c) => c.id === "north_takeaway");
   const t = String(title || "")
     .replace(/\u200c/g, "")
     .replace(/\s+/g, " ")
@@ -243,7 +249,7 @@ function renderPreferences() {
   }
 
   userData.foods.forEach((food, index) => {
-    const cat = getFoodCategory(food.title);
+    const cat = getFoodCategory(food.title, food.selfId);
     const price = food.price ?? ALL_FOODS.find((f) => f.id === food.id)?.price;
     const priceLabel = price ? `${Number(price).toLocaleString("en-US")} تومان` : "";
     const li = document.createElement("li");
@@ -339,7 +345,7 @@ function renderAllFoodsList(searchTerm = "") {
   }
 
   for (const cat of FOOD_CATEGORIES) {
-    const items = filtered.filter((f) => getFoodCategory(f.title).id === cat.id);
+    const items = filtered.filter((f) => getFoodCategory(f.title, f.selfId).id === cat.id);
     if (items.length === 0) continue;
 
     const header = document.createElement("div");

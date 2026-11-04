@@ -168,7 +168,7 @@ async function reserveForUser(user, weekStartDate, pool, bot) {
       const triedProgramIds = new Set();
 
       for (const food of uFoods) {
-        const selfIds = getSelfIdsForFood(food?.title, gender);
+        const selfIds = getSelfIdsForFood(food?.title, gender, food?.selfId);
         let program = null;
         for (const selfId of selfIds) {
           const dayPrograms = (bySelf[selfId] || []).filter((p) => p.dayTranslated === day.english);

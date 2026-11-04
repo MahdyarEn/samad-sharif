@@ -108,7 +108,7 @@ app.post("/api/get-data", async (req, res) => {
       auto_reserve: Number(rows?.auto_reserve) === 1,
       force_reserve: Number(rows?.force_reserve) === 1,
       wait_selves: normalizeWaitSelves(rows?.wait_selves),
-      foods: FOODS.map(({ id, title, price }) => ({ id, title, price })),
+      foods: FOODS.map(({ id, title, price, selfId }) => ({ id, title, price, selfId })),
       user: !!rows,
       isLogin: !!rows?.username,
     });

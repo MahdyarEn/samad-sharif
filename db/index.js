@@ -128,7 +128,7 @@ export async function setForceReserve(pool, userId, enabled) {
 }
 
 export async function setWaitSelves(pool, userId, selfIds) {
-  let ids = Array.isArray(selfIds) ? selfIds.map(Number).filter((n) => [1, 2, 22, 23, 24, 25].includes(n)) : [];
+  let ids = Array.isArray(selfIds) ? selfIds.map(Number).filter((n) => [1, 2, 20, 21, 22, 23, 24, 25].includes(n)) : [];
   ids = [...new Set(ids)].map((id) => (id === 2 ? 1 : id));
   if (!ids.length) ids = [1];
   await pool.query("UPDATE users SET wait_selves = ? WHERE id = ?", [JSON.stringify(ids), userId]);

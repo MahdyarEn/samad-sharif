@@ -39,58 +39,58 @@ export function backKeyboard() {
 
 export const FOODS = [
   { id: 1, title: "چلو کباب کوبیده", price: 35000 },
-  { id: 2, title: "چلوکباب کوبیده (کاله)", price: 108000 },
-  { id: 3, title: "چلوکباب نگین دار", price: 35000 },
+  // { id: 2, title: "چلوکباب کوبیده (کاله)", price: 108000 },
+  // { id: 3, title: "چلوکباب نگین دار", price: 35000 },
 
   { id: 4, title: "چلو جوجه‌کباب", price: 35000 },
-  { id: 5, title: "چلو جوجه کباب (کاله)", price: 76000 },
+  // { id: 5, title: "چلو جوجه کباب (کاله)", price: 76000 },
 
-  { id: 6, title: "شنیتسل مرغ با برنج", price: 35000 },
-  { id: 7, title: "خوراک شنیتسل مرغ", price: 35000 },
-  { id: 8, title: "خوراک فیله سوخاری", price: 25000 },
-  { id: 9, title: "خوراک کوردن بلو", price: 35000 },
-  { id: 10, title: "خوراک جوجه چینی", price: 25000 },
+  // { id: 6, title: "شنیتسل مرغ با برنج", price: 35000 },
+  // { id: 7, title: "خوراک شنیتسل مرغ", price: 35000 },
+  // { id: 8, title: "خوراک فیله سوخاری", price: 25000 },
+  // { id: 9, title: "خوراک کوردن بلو", price: 35000 },
+  // { id: 10, title: "خوراک جوجه چینی", price: 25000 },
 
-  { id: 11, title: "چلو مرغ ترش", price: 35000 },
+  // { id: 11, title: "چلو مرغ ترش", price: 35000 },
 
   { id: 12, title: "زرشک‌پلو با مرغ", price: 35000 },
-  { id: 13, title: "زرشک پلو با مرغ (کاله)", price: 65000 },
+  // { id: 13, title: "زرشک پلو با مرغ (کاله)", price: 65000 },
 
   { id: 14, title: "خوراک ماکارونی با گوشت", price: 25000 },
-  { id: 15, title: "خوراک ماکارونی با گوشت (کاله)", price: 12000 },
-  { id: 16, title: "خوراک ماکارونی فرمی", price: 25000 },
+  // { id: 15, title: "خوراک ماکارونی با گوشت (کاله)", price: 12000 },
+  // { id: 16, title: "خوراک ماکارونی فرمی", price: 25000 },
   { id: 17, title: "پیتزا مخلوط (کاله)", price: 95000 },
 
   { id: 18, title: "چلو‌خورش قورمه‌سبزی", price: 35000 },
-  { id: 19, title: "چلوخورش قرمه سبزی (کاله)", price: 43500 },
+  // { id: 19, title: "چلوخورش قرمه سبزی (کاله)", price: 43500 },
   { id: 20, title: "چلوخورش فسنجان با مرغ", price: 35000 },
   { id: 21, title: "چلو‌خورش قیمه‌ سیب زمینی", price: 35000 },
-  { id: 22, title: "چلوخورش قیمه سیب زمینی (کاله)", price: 57000 },
-  { id: 23, title: "چلو‌خورش قیمه‌بادمجان", price: 35000 },
+  // { id: 22, title: "چلوخورش قیمه سیب زمینی (کاله)", price: 57000 },
+  // { id: 23, title: "چلو‌خورش قیمه‌بادمجان", price: 35000 },
   { id: 24, title: "چلو خورشت مسما بادمجان", price: 35000 },
-  { id: 25, title: "چلوخورشت آلو اسفناج", price: 35000 },
+  // { id: 25, title: "چلوخورشت آلو اسفناج", price: 35000 },
   { id: 26, title: "چلو‌خورش کرفس", price: 35000 },
-  { id: 27, title: "چلو‌خورش لوبیا‌ سبز", price: 35000 },
+  // { id: 27, title: "چلو‌خورش لوبیا‌ سبز", price: 35000 },
 
   { id: 28, title: "عدس‌پلو با گوشت", price: 35000 },
-  { id: 29, title: "عدس‌پلو با گوشت (کاله)", price: 52000 },
+  // { id: 29, title: "عدس‌پلو با گوشت (کاله)", price: 52000 },
   { id: 30, title: "لوبیا پلو", price: 35000 },
-  { id: 31, title: "لوبیاپلو با گوشت تکه (کاله)", price: 65000 },
-  { id: 32, title: "استامبولی پلو با گوشت", price: 25000 },
-  { id: 33, title: "رشته پلو با گوشت", price: 25000 },
-  { id: 34, title: "سبزی پلو با تن ماهی", price: 35000 },
+  // { id: 31, title: "لوبیاپلو با گوشت تکه (کاله)", price: 65000 },
+  // { id: 32, title: "استامبولی پلو با گوشت", price: 25000 },
+  // { id: 33, title: "رشته پلو با گوشت", price: 25000 },
+  // { id: 34, title: "سبزی پلو با تن ماهی", price: 35000 },
 
-  { id: 35, title: "چلو با تن ماهی", price: 35000 },
-  { id: 36, title: "چلو با شامی کباب", price: 35000 },
+  // { id: 35, title: "چلو با تن ماهی", price: 35000 },
+  // { id: 36, title: "چلو با شامی کباب", price: 35000 },
 
   { id: 37, title: "خوراک کتلت", price: 35000 },
-  { id: 38, title: "خوراک کتلت مرغ", price: 25000 },
-  { id: 39, title: "خوراک کوکو سیب‌زمینی", price: 25000 },
+  // { id: 38, title: "خوراک کتلت مرغ", price: 25000 },
+  // { id: 39, title: "خوراک کوکو سیب‌زمینی", price: 25000 },
   { id: 40, title: "خوراک کوکو سبزی", price: 25000 },
-  { id: 41, title: "خوراک میرزا قاسمی", price: 25000 },
-  { id: 42, title: "خوراک قارچ و مرغ", price: 35000 },
+  // { id: 41, title: "خوراک میرزا قاسمی", price: 25000 },
+  // { id: 42, title: "خوراک قارچ و مرغ", price: 35000 },
   { id: 43, title: "خوراک کوفته تبریزی", price: 35000 },
-  { id: 44, title: "خوراک تن ماهی", price: 25000 },
+  // { id: 44, title: "خوراک تن ماهی", price: 25000 },
 
   { id: 45, title: "خوراک فلافل", price: 25000 },
 
@@ -101,32 +101,32 @@ export const FOODS = [
   { id: 50, title: "سینی خوراک فلافل (کاله)", price: 75000 },
   { id: 51, title: "سینی املت و نرگسی (کاله)", price: 75000 },
   { id: 52, title: "سینی ماکارونی و ناگت (کاله)", price: 75000 },
-  { id: 53, title: "سینی ساندویچ و کتلت (کاله)", price: 95000 },
-  { id: 54, title: "سینی ساندویچ و کوکوسبزی (کاله)", price: 95000 },
+  // { id: 53, title: "سینی ساندویچ و کتلت (کاله)", price: 95000 },
+  // { id: 54, title: "سینی ساندویچ و کوکوسبزی (کاله)", price: 95000 },
   { id: 55, title: "سینی پیتزا و کراکت (کاله)", price: 95000 },
-  { id: 56, title: "سینی پیتزا و کوکوسبزی (کاله)", price: 95000 },
+  // { id: 56, title: "سینی پیتزا و کوکوسبزی (کاله)", price: 95000 },
 
-  { id: 57, title: "رشته پلو", price: 25000 },
+  // { id: 57, title: "رشته پلو", price: 25000 },
   { id: 58, title: "پاستاچیکن آلفردو (فست‌فود شریف)", price: 65000 },
   { id: 59, title: "پاستاچیکن آلفردو (کلین‌فود)", price: 85000 },
   { id: 60, title: "چلوجوجه‌کباب‌مکزیکی (فست‌فود شریف)", price: 55000 },
   { id: 61, title: "چلوکباب‌کوبیده نگین‌دار (فست‌فود شریف)", price: 115000 },
-  { id: 62, title: "چیزبرگر کلاسیک (کاله)", price: 65000 },
-  { id: 63, title: "سالاد الویه مرغ (کاله)", price: 10000 },
+  // { id: 62, title: "چیزبرگر کلاسیک (کاله)", price: 65000 },
+  // { id: 63, title: "سالاد الویه مرغ (کاله)", price: 10000 },
   { id: 64, title: "ساندویچ پپرونی‌مخصوص (یونی‌فود)", price: 35000 },
   { id: 65, title: "ساندویچ دنر‌کباب‌گوشت (کلین‌فود)", price: 45000 },
   { id: 66, title: "ساندویچ دنرکباب‌گوشت‌و‌پنیر (یونی‌فود)", price: 35000 },
   { id: 67, title: "ساندویچ دنرکباب‌مرغ‌و‌پنیر (یونی‌فود)", price: 35000 },
   { id: 68, title: "ساندویچ دنرکباب‌مرغ (کلین‌فود)", price: 35000 },
-  { id: 69, title: "ساندویچ ژامبون گوشت (کاله)", price: 16000 },
+  // { id: 69, title: "ساندویچ ژامبون گوشت (کاله)", price: 16000 },
   { id: 70, title: "ساندویچ ژامبون‌گوشت (یونی‌فود)", price: 25000 },
-  { id: 71, title: "ساندویچ ژامبون مرغ (کاله)", price: 16000 },
+  // { id: 71, title: "ساندویچ ژامبون مرغ (کاله)", price: 16000 },
   { id: 72, title: "ساندویچ ژامبون‌مرغ (یونی‌فود)", price: 25000 },
   { id: 73, title: "ساندویچ شنیتسل‌مرغ (فست‌فود شریف)", price: 35000 },
-  { id: 74, title: "ساندویچ مرغ انار و گردو (کاله)", price: 28000 },
-  { id: 75, title: "ساندویچ مرغ پستو (کاله)", price: 28000 },
+  // { id: 74, title: "ساندویچ مرغ انار و گردو (کاله)", price: 28000 },
+  // { id: 75, title: "ساندویچ مرغ پستو (کاله)", price: 28000 },
   { id: 76, title: "ساندویچ مرغ‌تنوری (فست‌فود شریف)", price: 35000 },
-  { id: 77, title: "ساندویچ مرغ گریل (کاله)", price: 28000 },
+  // { id: 77, title: "ساندویچ مرغ گریل (کاله)", price: 28000 },
   { id: 78, title: "ساندویچ همبرگر‌ذغالی (کلین‌فود)", price: 35000 },
   { id: 79, title: "کلاب ژامبون‌مرغ‌دبل (کلانا)", price: 25000 },
   { id: 80, title: "کلاب سینه‌بوقلمون‌دبل (کلانا)", price: 10000 },
@@ -157,7 +157,7 @@ export const FOODS = [
   { id: 102, title: "رپ فلافل(کلانا)", price: 5000 },
   { id: 103, title: "زرشک پلو با مرغ (فست فود شریف)", price: 35000 },
   { id: 104, title: "ساندویچ بزرگ هات داگ ذغالی(کلین فود)", price: 35000 },
-  { id: 105, title: "ساندویچ بیکن ویژه گوشت(یونی فود)", price: 35000 },
+  { id: 105, title: "ساندویچ بیکن ویژه گوشت(یونی فود)", price: 50000 },
   { id: 106, title: "ساندویچ بیکن ویژه مرغ(یونی فود)", price: 35000 },
   { id: 107, title: "ساندویچ دنر کباب گوشت و پنیر(یونی فود)", price: 35000 },
   { id: 108, title: "ساندویچ ژامبون گوشت بره (فست فود شریف)", price: 35000 },
@@ -187,6 +187,31 @@ export const FOODS = [
   { id: 129, title: "پنه گوشت و بادمجان(کلانا)", price: 5000 },
   { id: 130, title: "رپ بوریتوگوشت(کلانا)", price: 45000 },
   { id: 131, title: "کلاب مرغ دودی دبل(کلانا)", price: 70000 },
+
+  { id: 132, title: "ساندویچ ژامبون گوشت (کاله)", price: 25000, selfId: 20 },
+  { id: 133, title: "سالاد کژال (کاله)", price: 95000, selfId: 20 },
+  { id: 134, title: "ساندویچ مرغ گریل (کاله)", price: 25000, selfId: 20 },
+  { id: 135, title: "سالاد الویه مرغ (کاله)", price: 75000, selfId: 20 },
+  { id: 136, title: "خوراک عدسی (کاله)", price: 25000, selfId: 20 },
+  { id: 137, title: "سالاد سزار (کاله)", price: 95000, selfId: 20 },
+  { id: 138, title: "آش رشته (کاله)", price: 25000, selfId: 20 },
+  { id: 139, title: "ساندویچ ژامبون مرغ (کاله)", price: 25000, selfId: 20 },
+  { id: 140, title: "ساندویچ ژامبون گوشت (کاله)", price: 25000, selfId: 21 },
+  { id: 141, title: "سالاد کژال (کاله)", price: 95000, selfId: 21 },
+  { id: 142, title: "ساندویچ مرغ گریل (کاله)", price: 25000, selfId: 21 },
+  { id: 143, title: "سالاد الویه مرغ (کاله)", price: 75000, selfId: 21 },
+  { id: 144, title: "خوراک عدسی (کاله)", price: 25000, selfId: 21 },
+  { id: 145, title: "سالاد سزار (کاله)", price: 95000, selfId: 21 },
+  { id: 146, title: "آش رشته (کاله)", price: 25000, selfId: 21 },
+  { id: 147, title: "ساندویچ ژامبون مرغ (کاله)", price: 25000, selfId: 21 },
+  { id: 148, title: "چیزبرگر کلاسیک (کاله)", price: 95000, selfId: 20 },
+  { id: 149, title: "ساندویچ پارما بوقلمون (کاله)", price: 25000, selfId: 20 },
+  { id: 150, title: "چیزبرگر کلاسیک (کاله)", price: 95000, selfId: 21 },
+  { id: 151, title: "ساندویچ پارما بوقلمون (کاله)", price: 25000, selfId: 21 },
+  { id: 152, title: "ساندویچ مرغ پستو (کاله)", price: 25000, selfId: 20 },
+  { id: 153, title: "ساندویچ مرغ پستو (کاله)", price: 25000, selfId: 21 },
+  { id: 154, title: "ساندویچ مرغ انار و گردو (کاله)", price: 25000, selfId: 20 },
+  { id: 155, title: "ساندویچ مرغ انار و گردو (کاله)", price: 25000, selfId: 21 },
 ];
 
 export function normalizeFoodName(name) {
@@ -203,6 +228,8 @@ export const FOOD_CATEGORIES = [
   { id: "kalana", title: "کلانا", icon_custom_emoji_id: "5328093903499305675" },
   { id: "sharifi", title: "فست‌فود شریف", icon_custom_emoji_id: "5330083572868979930" },
   { id: "clean", title: "کلین‌فود", icon_custom_emoji_id: "5328065681269203890" },
+  { id: "central_takeaway", title: "کاله پردیس مرکزی (بیرون‌بر)", icon_custom_emoji_id: "5328111877937438773" },
+  { id: "north_takeaway", title: "کاله پردیس شمالی (بیرون‌بر)", icon_custom_emoji_id: "5328111877937438773" },
 ];
 
 export const SAMAD_SELVES = [
@@ -211,6 +238,8 @@ export const SAMAD_SELVES = [
   { id: 23, key: "clean", title: "کلین‌فود", categoryIds: ["clean"] },
   { id: 24, key: "kalana", title: "کلانا", categoryIds: ["kalana"] },
   { id: 25, key: "unifood", title: "یونی‌فود", categoryIds: ["unifood"] },
+  { id: 20, key: "central_takeaway", title: "کاله پردیس مرکزی (بیرون‌بر)", categoryIds: ["central_takeaway"] },
+  { id: 21, key: "north_takeaway", title: "کاله پردیس شمالی (بیرون‌بر)", categoryIds: ["north_takeaway"] },
 ];
 
 export function getMainSelfId(gender) {
@@ -228,10 +257,12 @@ export function resolveWaitSelves(wait, gender) {
 }
 
 export function getReserveSelfIds(gender) {
-  return [getMainSelfId(gender), 22, 23, 24, 25];
+  return SAMAD_SELVES.map((self) => resolveSelfId(self.id, gender));
 }
 
-export function getFoodCategory(title = "") {
+export function getFoodCategory(title = "", selfId) {
+  if (Number(selfId) === 20) return FOOD_CATEGORIES.find((c) => c.id === "central_takeaway");
+  if (Number(selfId) === 21) return FOOD_CATEGORIES.find((c) => c.id === "north_takeaway");
   const t = normalizeFoodName(title);
   if (/یونیفود|یونی\s*فود/.test(t)) return FOOD_CATEGORIES.find((c) => c.id === "unifood");
   if (/کلینفود|کلین\s*فود/.test(t)) return FOOD_CATEGORIES.find((c) => c.id === "clean");
@@ -241,8 +272,8 @@ export function getFoodCategory(title = "") {
   return FOOD_CATEGORIES.find((c) => c.id === "self");
 }
 
-export function getSelfIdsForFood(title = "", gender) {
-  const catId = getFoodCategory(title)?.id;
+export function getSelfIdsForFood(title = "", gender, selfId) {
+  const catId = getFoodCategory(title, selfId)?.id;
   if (catId === "self" || catId === "kaleh") return [getMainSelfId(gender)];
   const self = SAMAD_SELVES.find((s) => s.categoryIds.includes(catId));
   return [self?.id ?? getMainSelfId(gender)];
@@ -263,7 +294,8 @@ export function buildPreferenceText(userId, foods, userFoodState) {
 
   const lines = selected.map((food, index) => {
     const p = food.price ?? foods.find((f) => f.id === food.id)?.price;
-    return p ? `${index + 1}. ${food.title}  -  <b>${Number(p).toLocaleString("en-US")} تومان</b>` : `${index + 1}. ${food.title}`;
+    const title = food.selfId ? `${food.title} - ${getFoodCategory(food.title, food.selfId).title}` : food.title;
+    return p ? `${index + 1}. ${title}  -  <b>${Number(p).toLocaleString("en-US")} تومان</b>` : `${index + 1}. ${title}`;
   });
 
   const catHint = cat ? `\n\n<tg-emoji emoji-id="6039630677182254664">📂</tg-emoji> در حال مشاهده: <b>${cat.title}</b>` : `\n\nبرای ادامه، یک دسته را انتخاب کنید.`;
@@ -281,8 +313,8 @@ export function buildFoodKeyboard(userId, foods, userFoodState) {
     for (let i = 0; i < FOOD_CATEGORIES.length; i += 2) {
       const row = [];
       for (const cat of FOOD_CATEGORIES.slice(i, i + 2)) {
-        const count = selected.filter((f) => getFoodCategory(f.title).id === cat.id).length;
-        const total = foods.filter((f) => getFoodCategory(f.title).id === cat.id).length;
+        const count = selected.filter((f) => getFoodCategory(f.title, f.selfId).id === cat.id).length;
+        const total = foods.filter((f) => getFoodCategory(f.title, f.selfId).id === cat.id).length;
         if (total === 0) continue;
         row.push({
           text: count > 0 ? `${cat.title} (${count})` : cat.title,
@@ -313,7 +345,7 @@ export function buildFoodKeyboard(userId, foods, userFoodState) {
     ]);
   }
 
-  const items = foods.filter((f) => getFoodCategory(f.title).id === activeCatId);
+  const items = foods.filter((f) => getFoodCategory(f.title, f.selfId).id === activeCatId);
   for (const food of items) {
     const index = selected.findIndex((f) => f.id === food.id);
     const isSelected = index !== -1;
@@ -712,7 +744,7 @@ export function buildWelcomeMessage(isPriority) {
   return `<h2>سلام</h2>
 <p>به ربات رزرو خودکار غذای سامانه سماد (ویژه دانشجویان دانشگاه صنعتی شریف) خوش آمدید</p>
 <p>این ربات امکان رزرو خودکار غذای سلف را مطابق با ترجیحات شما فراهم می‌کند.</p>
-<p><tg-emoji emoji-id="5427009714745517609">✅</tg-emoji> در حال حاضر سلف مرکزی پشتیبانی می‌شود (غذای سلف، کاله، یونی‌فود، کلانا، فست‌فود شریف و کلین‌فود).</p>
+<p><tg-emoji emoji-id="5427009714745517609">✅</tg-emoji> سلف‌های پشتیبانی‌شده: سلف مرکزی، کاله، یونی‌فود، کلانا، فست‌فود شریف، کلین‌فود، کاله پردیس مرکزی بیرون‌بر و کاله پردیس شمالی بیرون‌بر.</p>
 <p><tg-emoji emoji-id="5226512880362332956">📖</tg-emoji> <b>مراحل فعال‌سازی رزرو خودکار:</b></p>
 <ul>
 <li>انتخاب حداقل یک غذا</li>

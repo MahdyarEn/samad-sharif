@@ -1,6 +1,6 @@
 import { getSelfWeekPrograms } from "../api/services.js";
 import { getLastReservedWeek } from "../db/index.js";
-import { getNextSaturday, isSelfOpenedInPanel } from "../utils/index.js";
+import { getNextSaturday, isSelfOpenedInPanel, SAMAD_SELVES } from "../utils/index.js";
 
 function sameWeek(a, b) {
   if (!a || !b) return false;
@@ -11,37 +11,33 @@ export async function checkNewWeek(pool, adminToken) {
   const nextWeekStart = getNextSaturday();
   const lastReservedWeek = await getLastReservedWeek(pool);
 
-  try {
-    const nextWeekRes = await getSelfWeekPrograms(adminToken, nextWeekStart);
-
-    if (nextWeekRes?.status === 200) {
-      if (!isSelfOpenedInPanel(nextWeekRes.data)) {
-        console.log("[CHECK] next week still closed in panel, wait");
-        return null;
-      }
-      return {
-        weekStartDate: nextWeekStart,
-        isNewWeek: !sameWeek(lastReservedWeek, nextWeekStart),
-      };
-    }
-  } catch (e) {}
+  if (await hasOpenSelf(adminToken, nextWeekStart)) {
+    return {
+      weekStartDate: nextWeekStart,
+      isNewWeek: !sameWeek(lastReservedWeek, nextWeekStart),
+    };
+  }
 
   if (lastReservedWeek) {
-    try {
-      const currentWeekRes = await getSelfWeekPrograms(adminToken, lastReservedWeek);
-
-      if (currentWeekRes?.status === 200) {
-        if (!isSelfOpenedInPanel(currentWeekRes.data)) {
-          console.log("[CHECK] last reserved week still closed in panel, wait");
-          return null;
-        }
-        return {
-          weekStartDate: lastReservedWeek,
-          isNewWeek: false,
-        };
-      }
-    } catch (e) {}
+    if (await hasOpenSelf(adminToken, lastReservedWeek)) {
+      return {
+        weekStartDate: lastReservedWeek,
+        isNewWeek: false,
+      };
+    }
   }
 
   return null;
+}
+
+async function hasOpenSelf(token, weekStartDate) {
+  for (const self of SAMAD_SELVES) {
+    try {
+      const res = await getSelfWeekPrograms(token, weekStartDate, self.id, { timeout: 20000 });
+      if (res.status === 200 && isSelfOpenedInPanel(res.data)) return true;
+    } catch (error) {
+      console.error("[CHECK] self unavailable", self.id, error.message);
+    }
+  }
+  return false;
 }
