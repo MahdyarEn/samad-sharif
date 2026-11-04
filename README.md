@@ -13,27 +13,38 @@
 
 👉 **[@SamadSharifBot](https://t.me/samadSharifBot)**
 
-> توجه: این ربات تنها برای تعداد محدودی از کاربران فعال است؛  
-> زیرا ظرفیت غذاها محدود بوده و مدیریت همین محدودیت، یکی از اهداف اصلی این پروژه محسوب می‌شود.
+### 📢 کانال اطلاع‌رسانی
 
+برای مشاهده برنامه غذایی هفته، منوی ناهار روزانه و اطلاع از باز شدن رزرو سلف‌ها، عضو کانال شوید:
+
+👉 **[@SharifSamad](https://t.me/SharifSamad)**
 
 ---
 
 ## ✨ قابلیت‌ها (Features)
 
 ### 🤖 ربات تلگرام
+
 - رزرو خودکار غذا بدون نیاز به دخالت کاربر
-- اجرای رزرو در لحظه باز شدن سامانه
-- پشتیبانی از چند سلف (سلف مرکزی، کاله، یونی‌فود، کلانا، فست‌فود شریف و کلین‌فود)
-- انتخاب غذا به‌صورت دسته‌بندی‌شده (اول دسته، بعد لیست غذاهای همان دسته)
+- بررسی دوره‌ای سامانه و اقدام برای رزرو پس از باز شدن برنامه غذایی
+- پشتیبانی از چند سلف (سلف مرکزی، کاله، یونی‌فود، کلانا، فست‌فود شریف، کلین‌فود و کاله بیرون‌بر پردیس مرکزی و شمالی)
+- انتخاب سلف مرکزی متناسب با حساب دانشجویان آقا و خانم
+- انتخاب و رزرو مستقل غذاهای بیرون‌بر هر پردیس
 - اولویت‌بندی شخصی غذاها برای هر کاربر
 - تنظیم شروع رزرو فقط بعد از آماده‌شدن سلف‌های انتخابی
 - تنظیمات رزرو خودکار و رزرو اجباری غذای روز
 - اعلام باز شدن هر سلف در کانال تلگرام (به‌صورت جدا برای هر self)
+- انتشار برنامه هفتگی غذاها در کانال به‌صورت جدول همراه با قیمت
+- ارسال منوی ناهار روزانه در کانال، شنبه تا چهارشنبه ساعت
+- مشاهده وضعیت رزروها به تفکیک روز و دریافت **QR کد فراموشی**
+- مشاهده اطلاعات حساب و اعتبار سماد
+- یادآوری هفتگی برای بررسی تنظیمات و اعتبار حساب
 
 ### 🌐 مینی‌اپ تلگرام
+
 - انتخاب روزهای فعال رزرو
 - انتخاب و اولویت‌بندی غذاها
+- نمایش قیمت غذاها به تومان و شماره اولویت انتخاب‌ها
 - مرتب‌سازی اولویت‌ها با **Drag & Drop**
 - تنظیمات رزرو خودکار، رزرو اجباری و سلف‌های مورد انتظار
 - رابط کاربری ساده و ریسپانسیو
@@ -44,9 +55,9 @@
 
 1. کاربر از طریق ربات تلگرام با **اطلاعات کاربری سماد** وارد حساب خود می‌شود  
    (اطلاعات به‌صورت **امن و رمزگذاری‌شده** ذخیره می‌شوند)
-2. کاربر روزها، اولویت غذاها و سلف‌های مورد انتظار را تنظیم می‌کند  
-3. ربات سامانه سماد را چک می‌کند و تا وقتی منو غذای هفته جدید نیاید، رزرو را شروع نمی‌کند  
-4. بعد از آماده‌شدن سلف‌های انتخابی کاربر، غذاها بر اساس اولویت او رزرو می‌شوند  
+2. کاربر روزها، اولویت غذاها و سلف‌های مورد انتظار را تنظیم می‌کند
+3. ربات سامانه سماد را چک می‌کند و تا وقتی منو غذای هفته جدید نیاید، رزرو را شروع نمی‌کند
+4. بعد از آماده‌شدن سلف‌های انتخابی کاربر، غذاها بر اساس اولویت او رزرو می‌شوند
 5. در صورت تنظیم کانال، باز شدن هر سلف به‌صورت جداگانه اطلاع‌رسانی می‌شود
 
 ---
@@ -54,16 +65,21 @@
 ## 🧑‍💻 تکنولوژی‌ها (Tech Stack)
 
 ### 🖥 Backend
+
 - **Node.js** – Core runtime for the Telegram bot and server-side services
 - **Express.js** – REST API implementation and backend logic handling
 - **Telegram Bot API (Node.js)** – Managing bot interactions and user communications
 
 ### 🌐 Frontend (Telegram Web App)
+
 - **JavaScript (Vanilla)** – Client-side logic for the Web App
 - **Tailwind CSS** – Utility-first styling and responsive UI design
 - **Telegram WebApp API** – Secure communication between the Web App and Telegram
+
 ---
+
 ## 🛠 راهنمای مشارکت (Collaboration)
+
 [CONTRIBUTING.md](https://github.com/MahdyarEn/samad-sharif/blob/main/CONTRIBUTING.md)
 
 ---
@@ -73,10 +89,10 @@
 <table width="100%">
   <tr>
     <td width="50%">
-      <img src="https://github.com/user-attachments/assets/a29ee7a3-321b-4032-8ec3-80fd816ad499" width="100%" alt="Screenshot 1">
+<img width="1206" height="2446" alt="1" src="https://github.com/user-attachments/assets/f0cd542c-2e35-423a-ac0f-44d94bacda07" />
     </td>
     <td width="50%">
-      <img src="https://github.com/user-attachments/assets/5df20fba-2cdc-4863-87b4-fe3aca057cc6" width="100%" alt="Screenshot 2">
+<img width="1206" height="2462" alt="2" src="https://github.com/user-attachments/assets/34ce02f4-1cef-4ef7-9849-a21188fc9709" />
     </td>
   </tr>
 </table>
@@ -86,13 +102,13 @@
 <table width="100%">
   <tr>
     <td width="33.3%">
-      <img src="https://github.com/user-attachments/assets/44ecf813-5128-48a1-82b6-8e5383e3008b" width="100%" alt="Screenshot 3">
+     <img width="1206" height="2451" alt="5" src="https://github.com/user-attachments/assets/7b7ab706-6030-41f4-aabd-f45f8b5615b1" />
     </td>
     <td width="33.3%">
-      <img src="https://github.com/user-attachments/assets/0a5b512e-fd89-4c4d-95ac-cae0d94a6b29" width="100%" alt="Screenshot 4">
+     <img width="1206" height="2452" alt="6" src="https://github.com/user-attachments/assets/5bc75ccc-d8a8-4789-81e5-f57f861cc1ed" />
     </td>
     <td width="33.3%">
-      <img src="https://github.com/user-attachments/assets/5709bd5d-c1a6-42c9-b5b7-e7ae19c4d4a1" width="100%" alt="Screenshot 5">
+<img width="1206" height="2452" alt="7" src="https://github.com/user-attachments/assets/22480db8-593a-4c7f-b3af-7ea352fbaf82" />
     </td>
   </tr>
 </table>
@@ -102,10 +118,26 @@
 <table width="100%">
   <tr>
     <td width="50%">
-      <img src="https://github.com/user-attachments/assets/61fecd10-d631-4f0b-b71c-b678ccb82fcb" width="100%" alt="Screenshot 6">
+<img width="1206" height="2451" alt="4" src="https://github.com/user-attachments/assets/8b5a859a-f65e-4b7a-881e-c05a1cfd9c25" />
     </td>
     <td width="50%">
-      <img src="https://github.com/user-attachments/assets/375dfcce-011c-4a7f-b6ae-bd97b3d40147" width="100%" alt="Screenshot 7">
+<img width="1206" height="2464" alt="3" src="https://github.com/user-attachments/assets/2199b527-a5dc-4a27-af30-f6266cbe17fc" />
+    </td>
+  </tr>
+</table>
+
+<br/>
+
+<table width="100%">
+  <tr>
+    <td width="33.3%">
+<img width="1206" height="2476" alt="8" src="https://github.com/user-attachments/assets/c5c86049-6b6d-4e69-83c9-15f87ccd67a0" />
+    </td>
+    <td width="33.3%">
+<img width="1206" height="2466" alt="9" src="https://github.com/user-attachments/assets/7428fbde-2dbd-4c21-9da2-2659f21ee63e" />
+    </td>
+    <td width="33.3%">
+<img width="1206" height="2432" alt="10" src="https://github.com/user-attachments/assets/fd3efde1-e6c9-45d3-8ba4-eb1cab383a1f" />
     </td>
   </tr>
 </table>
