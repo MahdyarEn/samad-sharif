@@ -279,7 +279,7 @@ function renderPreferences() {
 
   userData.foods.forEach((food, index) => {
     const cat = getFoodCategory(food.title, food.selfId);
-    const price = food.price ?? ALL_FOODS.find((f) => f.id === food.id)?.price;
+    const price = ALL_FOODS.find((f) => f.id === food.id)?.price ?? food.price;
     const priceLabel = price ? `${Number(price).toLocaleString("en-US")} تومان` : "";
     const li = document.createElement("li");
     li.className = "flex items-center justify-between bg-tg-secondary p-3 rounded-lg border border-tg-separator select-none group";
@@ -528,7 +528,7 @@ async function initApp() {
   if (apiData?.food_priority) {
     userData.foods = apiData.food_priority.map((f) => {
       const base = ALL_FOODS.find((x) => x.id === f.id);
-      return base ? { ...base, ...f, price: f.price ?? base.price } : f;
+      return base ? { ...f, ...base } : f;
     });
   }
   if (apiData?.days) selectedDays = apiData.days;

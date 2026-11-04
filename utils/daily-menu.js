@@ -7,7 +7,7 @@ export const DAILY_MENU_SELVES = [
   { id: 23, title: "کلین‌فود" },
   { id: 22, title: "فست‌فود شریف" },
   { id: 24, title: "کلانا" },
-  { id: 20, title: "کافه پردیس مرکزی (بیرون‌بر)" },
+  { id: 20, title: "کاله پردیس مرکزی (بیرون‌بر)" },
   { id: 21, title: "کاله پردیس شمالی (بیرون‌بر)" },
 ];
 
@@ -43,13 +43,11 @@ export function buildDailyMenuRichMessage(date, bySelf) {
   for (const self of DAILY_MENU_SELVES) {
     const titles = self.id === 1 ? ["سلف دانشگاه", "کاله"] : [self.title];
     const groups = new Map(titles.map((title) => [title, []]));
-    if (bySelf[self.id] == null) {
-      for (const title of titles) sections.push(`<p><b>${escapeHtml(title)}</b></p><p>دریافت برنامه ناموفق بود</p>`);
-      continue;
-    }
+    if (!Array.isArray(bySelf[self.id])) throw new Error(`Daily menu unavailable: self ${self.id}`);
     const seen = new Set();
     for (const p of bySelf[self.id]) {
       if (String(p.date).slice(0, 10) !== date) continue;
+      if (p.mealTypeId != null && Number(p.mealTypeId) !== 1) continue;
       const types = p.programFoodTypes?.length ? p.programFoodTypes : [{ foodList: [{ name: p.foodName }], price: p.price }];
       for (const type of types)
         for (const food of type.foodList || []) {

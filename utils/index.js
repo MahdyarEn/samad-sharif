@@ -293,7 +293,7 @@ export function buildPreferenceText(userId, foods, userFoodState) {
   }
 
   const lines = selected.map((food, index) => {
-    const p = food.price ?? foods.find((f) => f.id === food.id)?.price;
+    const p = foods.find((f) => f.id === food.id)?.price ?? food.price;
     const title = food.selfId ? `${food.title} - ${getFoodCategory(food.title, food.selfId).title}` : food.title;
     return p ? `${index + 1}. ${title}  -  <b>${Number(p).toLocaleString("en-US")} تومان</b>` : `${index + 1}. ${title}`;
   });
@@ -689,7 +689,7 @@ export async function getSamadAccessToken(pool) {
   const cached = await getAdminAccessToken(pool);
   if (cached) {
     const profile = await fetchUserProfile(cached).catch(() => null);
-    if (!isInvalidToken(profile)) return cached;
+    if (profile?.payload && !isInvalidToken(profile)) return cached;
   }
 
   try {

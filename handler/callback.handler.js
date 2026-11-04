@@ -87,20 +87,12 @@ export default async function handleCallback(bot, query, pool, userState) {
 
     /* ================= FOOD SECTION ================= */
     case data === "MENU_PREFERENCE": {
-      let state = userState.get(fromId);
-
-      if (!state) {
-        const user = await getUser(fromId, pool);
-        state = {
-          foods: normalizeArray(user?.food_priority),
-          days: [],
-          foodCategory: null,
-        };
-        userState.set(fromId, state);
-      } else {
-        state.foodCategory = null;
-        userState.set(fromId, state);
-      }
+      const user = await getUser(fromId, pool);
+      userState.set(fromId, {
+        foods: normalizeArray(user?.food_priority).map((food) => ({ ...food, ...FOODS.find((item) => item.id === food.id) })),
+        days: [],
+        foodCategory: null,
+      });
 
       const msg_res = await bot.editMessageText(buildPreferenceText(fromId, FOODS, userState), {
         reply_markup: buildFoodKeyboard(fromId, FOODS, userState),
@@ -135,6 +127,10 @@ export default async function handleCallback(bot, query, pool, userState) {
       if (exists) {
         currentState.foods = currentState.foods.filter((f) => f.id !== foodId);
       } else {
+        if (!food) {
+          await answer({ text: "این غذا دیگر در فهرست نیست. دوباره بخش اولویت غذا را باز کنید.", show_alert: true });
+          return;
+        }
         currentState.foods?.push({ ...food });
       }
 
