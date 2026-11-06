@@ -1,5 +1,5 @@
 import QRCode from "qrcode";
-import { getUser, logoutUser, saveDays, savefoodPriority, saveSession, setAutoReserve, setForceReserve, setWaitSelves } from "../db/index.js";
+import { getUser, getWeekFoodDays, logoutUser, saveDays, savefoodPriority, saveSession, setAutoReserve, setForceReserve, setWaitSelves, setWeekFood } from "../db/index.js";
 import {
   backKeyboard,
   buildAccountKeyboard,
@@ -13,17 +13,25 @@ import {
   buildStatusDayText,
   buildStatusDaysKeyboard,
   buildStatusWeekText,
+  buildFoodMenuKeyboard,
+  buildWeekDayKeyboard,
+  buildWeekPickKeyboard,
+  buildWeekPickText,
   DAYS,
   FOODS,
   getCurrentWeekSaturday,
   getDayReserves,
   getUnconsumedStatusDays,
+  getWeekPickMenu,
+  isWeekPickLocked,
   normalizeArray,
   normalizeWaitSelves,
   SAMAD_SELVES,
   statusDayBackKeyboard,
 } from "../utils/index.js";
 import { fetchForgetCardCode, fetchUserProfile, fetchUserReserves, isBadCredentials, isInvalidToken, loginUser } from "../api/services.js";
+
+const WEEK_LOCKED_MSG = "رزرو هفته بعد باز شده و انتخاب غذای هفتگی برای این هفته بسته است";
 
 async function ensureSamadToken(user, pool) {
   let token = user?.access_token;
@@ -262,6 +270,95 @@ export default async function handleCallback(bot, query, pool, userState) {
       );
       break;
     }
+    /* ================= WEEK PICK SECTION ================= */
+    case data === "MENU_FOOD": {
+      userState.delete(fromId);
+      await bot.editMessageText(
+        `<tg-emoji emoji-id="5359678839591018693">🍽</tg-emoji> <b>انتخاب غذا</b>
+
+• <b>اولویت‌های عمومی:</b> هر هفته به ترتیب همین اولویت‌ها رزرو می‌شود.
+• <b>رزرو هفتگی:</b> وقتی منوی هفته بعد مشخص شد و هنوز رزرو باز نشده، برای هر روز یک غذای مشخص انتخاب کنید.
+
+یکی از گزینه‌ها را انتخاب کنید <tg-emoji emoji-id="5470177992950946662">👇</tg-emoji>`,
+        {
+          chat_id: fromId,
+          message_id: messageId,
+          reply_markup: buildFoodMenuKeyboard(),
+          parse_mode: "HTML",
+        },
+      );
+      break;
+    }
+
+    case data === "WEEK_MENU" || data === "WEEK_HOME": {
+      const user = await getUser(fromId, pool);
+      const state = userState.get(fromId) || {};
+
+      if (data === "WEEK_MENU" || !state.weekMenu) {
+        const menu = await getWeekPickMenu(pool);
+        if (menu.locked || !menu.foods.length) {
+          await answer({ text: menu.locked ? WEEK_LOCKED_MSG : "لیست غذاهای هفته بعد هنوز در سماد مشخص نشده است", show_alert: true });
+          break;
+        }
+        state.weekMenu = menu;
+      }
+      userState.set(fromId, state);
+
+      const { week, foods } = state.weekMenu;
+      const picks = getWeekFoodDays(user, week);
+      await bot.editMessageText(buildWeekPickText(week, picks), {
+        chat_id: fromId,
+        message_id: messageId,
+        reply_markup: buildWeekPickKeyboard(foods, picks),
+        parse_mode: "HTML",
+      });
+      break;
+    }
+
+    case data.startsWith("WEEK_DAY:"): {
+      const day = DAYS.find((d) => d.id === Number(data.split(":")[1]));
+      const menu = currentState.weekMenu;
+      if (!day || !menu) {
+        await answer({ text: "دوباره بخش رزرو هفتگی را باز کنید", show_alert: true });
+        break;
+      }
+
+      const user = await getUser(fromId, pool);
+      const pick = getWeekFoodDays(user, menu.week).find((p) => p.english === day.english)?.food;
+      await bot.editMessageText(`<tg-emoji emoji-id="5359678839591018693">🍽</tg-emoji> غذای روز <b>${day.title}</b> را انتخاب کنید:`, {
+        chat_id: fromId,
+        message_id: messageId,
+        reply_markup: buildWeekDayKeyboard(day, menu.foods, pick),
+        parse_mode: "HTML",
+      });
+      break;
+    }
+
+    case data.startsWith("WEEK_FOOD:") || data.startsWith("WEEK_CLEAR:"): {
+      const menu = currentState.weekMenu;
+      const food = data.startsWith("WEEK_FOOD:") ? menu?.foods[Number(data.split(":")[1])] : null;
+      const day = food ? DAYS.find((d) => d.english === food.day) : DAYS.find((d) => d.id === Number(data.split(":")[1]));
+      if (!menu || !day) {
+        await answer({ text: "دوباره بخش رزرو هفتگی را باز کنید", show_alert: true });
+        break;
+      }
+      if (await isWeekPickLocked(pool, menu.week)) {
+        await answer({ text: WEEK_LOCKED_MSG, show_alert: true });
+        break;
+      }
+
+      await setWeekFood(pool, fromId, menu.week, day, food && { title: food.title, selfId: food.selfId, price: food.price });
+      const picks = getWeekFoodDays(await getUser(fromId, pool), menu.week);
+      await bot.editMessageText(buildWeekPickText(menu.week, picks), {
+        chat_id: fromId,
+        message_id: messageId,
+        reply_markup: buildWeekPickKeyboard(menu.foods, picks),
+        parse_mode: "HTML",
+      });
+      await answer({ text: food ? `${day.title}: ${food.title} ✅` : `${day.title}: اولویت‌های عمومی` });
+      break;
+    }
+
     case data === "MENU_ACCOUNT": {
       await bot.editMessageText("<tg-emoji emoji-id='5818705028424141605'>⚙️</tg-emoji> مدیریت حساب کاربری\n\nلطفا یکی از گزینه‌های زیر را انتخاب کنید <tg-emoji emoji-id='5470177992950946662'>👇</tg-emoji>", {
         chat_id: fromId,

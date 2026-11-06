@@ -53,6 +53,9 @@ let selectedDays = [];
 let autoReserve = true;
 let forceReserve = false;
 let waitSelves = [1];
+let weekPicks = [];
+let weekChanged = false;
+const weekBox = document.getElementById("week-box");
 
 const DAYS = [
   { id: 0, title: "شنبه", english: "Saturday" },
@@ -132,6 +135,7 @@ const saveData = async () => {
         auto_reserve: autoReserve,
         force_reserve: forceReserve,
         wait_selves: waitSelves.length ? waitSelves : [1],
+        week_foods: weekChanged ? weekPicks : undefined,
       }),
     });
     if (response.status === 200) {
@@ -256,6 +260,60 @@ function renderDays() {
       markAsChanged();
     });
     daysBox.appendChild(label);
+  });
+}
+
+async function loadWeekMenu() {
+  weekBox.innerHTML = '<div class="text-center text-tg-hint py-2 text-sm">در حال دریافت منوی هفته بعد...</div>';
+  let menu = null;
+  try {
+    const response = await fetch("/api/week-menu", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ initData: telegram.initData }),
+    });
+    menu = await response.json();
+  } catch {}
+
+  const hint = menu?.locked ? "رزرو هفته بعد باز شده و انتخاب غذای هفتگی برای این هفته بسته است." : !menu?.foods?.length ? "لیست غذاهای هفته بعد هنوز در سماد مشخص نشده است." : "";
+  if (hint || menu.error) {
+    weekBox.innerHTML = `<div class="text-center text-tg-hint py-2 text-sm leading-6">${menu?.error || hint}</div>`;
+    return;
+  }
+
+  weekPicks = (menu.picks || []).map((p) => ({ english: p.english, title: p.food.title, selfId: p.food.selfId }));
+  weekBox.innerHTML = "";
+  DAYS.forEach((day) => {
+    const foods = menu.foods.filter((f) => f.day === day.english);
+    if (!foods.length) return;
+    const current = weekPicks.find((p) => p.english === day.english);
+
+    const label = document.createElement("label");
+    label.className = `bg-tg-secondary w-full p-3 flex items-center justify-between gap-3 rounded-lg border border-transparent shadow-sm transition-all ${current ? "active" : ""}`;
+    const title = document.createElement("span");
+    title.className = "text-sm font-medium text-tg-text shrink-0";
+    title.textContent = day.title;
+    const select = document.createElement("select");
+    select.className = "min-w-0 flex-1 bg-tg-section text-tg-text text-sm p-2 rounded-lg border border-tg-separator outline-none focus:border-tg-button";
+    select.add(new Option("اولویت‌های عمومی", ""));
+    SAMAD_SELVES.forEach((self) => {
+      const items = foods.filter((f) => f.selfId === self.id);
+      if (!items.length) return;
+      const group = document.createElement("optgroup");
+      group.label = self.title;
+      items.forEach((f) => group.appendChild(new Option(`${f.title} · ${f.price.toLocaleString("en-US")} تومان`, menu.foods.indexOf(f), false, current?.title === f.title && current?.selfId === f.selfId)));
+      select.appendChild(group);
+    });
+    select.addEventListener("change", () => {
+      const food = menu.foods[select.value];
+      weekPicks = weekPicks.filter((p) => p.english !== day.english);
+      if (food) weekPicks.push({ english: day.english, title: food.title, selfId: food.selfId });
+      label.classList.toggle("active", !!food);
+      weekChanged = true;
+      markAsChanged();
+    });
+    label.append(title, select);
+    weekBox.appendChild(label);
   });
 }
 
@@ -495,6 +553,7 @@ function setError(err, title = "دسترسی غیرمجاز") {
   document.querySelector("#err-msg").innerHTML = err;
   document.querySelector("#error").classList.remove("hidden");
   document.querySelector("#food-section")?.remove();
+  document.querySelector("#week-section")?.remove();
   document.querySelector("#days-section")?.remove();
   document.querySelector("#settings-section")?.remove();
   document.querySelector("#wait-selves-section")?.remove();
@@ -541,6 +600,7 @@ async function initApp() {
   renderWaitSelves();
   renderDays();
   renderPreferences();
+  loadWeekMenu();
 }
 
 initApp();

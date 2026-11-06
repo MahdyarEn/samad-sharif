@@ -1,5 +1,5 @@
 import { fetchUserProfile, getSelfWeekPrograms, isBadCredentials, isInvalidToken, loginUser, reserveFood } from "../api/services.js";
-import { getPendingReserveDays, logoutUser, saveSession, setUserLastCheckedProgram, touchReservedDay } from "../db/index.js";
+import { getPendingReserveDays, getWeekFoodDays, logoutUser, saveSession, setUserLastCheckedProgram, touchReservedDay } from "../db/index.js";
 import {
   areSelvesReady,
   buildHomeKeyboard,
@@ -8,6 +8,7 @@ import {
   getSelfIdsForFood,
   normalizeArray,
   normalizeFoodName,
+  resolveSelfId,
   resolveWaitSelves,
   isPriorityUser,
   sleep,
@@ -151,7 +152,9 @@ async function reserveForUser(user, weekStartDate, pool, bot) {
     for (let dayIndex = 0; dayIndex < uDays.length; dayIndex++) {
       const day = uDays[dayIndex];
       const isLastDay = dayIndex === uDays.length - 1;
-      const dayProgramsAll = allPrograms.filter((p) => p.dayTranslated === day.english);
+      const weekFood = getWeekFoodDays(user, weekStartDate).find((d) => d.english === day.english)?.food;
+      const weekSelfId = weekFood ? resolveSelfId(weekFood.selfId, gender) : null;
+      const dayProgramsAll = (weekFood ? bySelf[weekSelfId] || [] : allPrograms).filter((p) => p.dayTranslated === day.english);
       if (dayProgramsAll.length === 0) {
         console.log(`[RESERVE] user=${user.id} day=${day.title} not open yet, retry later`);
         continue;
@@ -167,8 +170,8 @@ async function reserveForUser(user, weekStartDate, pool, bot) {
       let onlyFullOrMissing = true;
       const triedProgramIds = new Set();
 
-      for (const food of uFoods) {
-        const selfIds = getSelfIdsForFood(food?.title, gender, food?.selfId);
+      for (const food of weekFood ? [weekFood] : uFoods) {
+        const selfIds = weekFood ? [weekSelfId] : getSelfIdsForFood(food?.title, gender, food?.selfId);
         let program = null;
         for (const selfId of selfIds) {
           const dayPrograms = (bySelf[selfId] || []).filter((p) => p.dayTranslated === day.english);
@@ -184,8 +187,7 @@ async function reserveForUser(user, weekStartDate, pool, bot) {
         if (result.kind === "full") {
           bot.sendMessage(
             user.id,
-            `<tg-emoji emoji-id="5881702736843511327">⚠️</tg-emoji> غذای <b>${program.foodName}</b> برای روز <b>${day.title}</b> پر بود.
-در حال امتحان اولویت بعدی…`,
+            `<tg-emoji emoji-id="5881702736843511327">⚠️</tg-emoji> غذای <b>${program.foodName}</b> برای روز <b>${day.title}</b> پر بود.${weekFood ? "" : "\nدر حال امتحان اولویت بعدی…"}`,
             { parse_mode: "HTML" },
           );
           await sleep(100);
@@ -207,7 +209,7 @@ async function reserveForUser(user, weekStartDate, pool, bot) {
         await sleep(100);
       }
 
-      if (!dayDone && forceReserve) {
+      if (!dayDone && forceReserve && !weekFood) {
         const fallbackPrograms = dayProgramsAll.filter((p) => !triedProgramIds.has(p.programId));
         for (let i = fallbackPrograms.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
@@ -246,7 +248,9 @@ async function reserveForUser(user, weekStartDate, pool, bot) {
 
       if (!dayDone) {
         const detail =
-          !triedAnyPriority && !forceReserve
+          !triedAnyPriority && weekFood
+            ? `<blockquote>غذای انتخابی هفتگی شما (${weekFood.title}) در منوی این روز نبود.</blockquote>`
+            : !triedAnyPriority && !forceReserve
             ? `<blockquote>هیچ‌کدام از اولویت‌های غذایی شما در منوی این روز نبود.</blockquote>`
             : lastFailMessage && !onlyFullOrMissing
               ? `<blockquote>${lastFailMessage}</blockquote>`

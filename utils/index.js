@@ -1,6 +1,6 @@
 import { fetchUserProfile, getSelfWeekPrograms, isInvalidToken, loginUser } from "../api/services.js";
 import config from "../config.js";
-import { getAdminAccessToken, setAdminAccessToken } from "../db/index.js";
+import { getAdminAccessToken, getLastReservedWeek, setAdminAccessToken } from "../db/index.js";
 import crypto from "crypto";
 import * as jalaali from "jalaali-js";
 export function buildHomeKeyboard(isLogined) {
@@ -13,7 +13,7 @@ export function buildHomeKeyboard(isLogined) {
     inline_keyboard: [
       [
         { text: "انتخاب روز های رزرو", callback_data: `MENU_RESERVE`, icon_custom_emoji_id: "5890937706803894250" },
-        { text: "انتخاب اولویت غذا", callback_data: `MENU_PREFERENCE`, icon_custom_emoji_id: "6041874690220233085" },
+        { text: "انتخاب غذا", callback_data: `MENU_FOOD`, icon_custom_emoji_id: "6041874690220233085" },
       ],
       [{ text: "وضعیت رزروها", callback_data: "MENU_STATUS", icon_custom_emoji_id: "6044117517847236354" }],
       [
@@ -412,6 +412,87 @@ export function buildDaysText(userId, days, userState) {
 
   const list = selectedDays.map((d) => `• ${d.title}`).join("\n");
   return `<tg-emoji emoji-id="5431897022456145283">📆</tg-emoji> روزهای انتخاب‌شده:\n${list}\n\nمی‌توانید روزهای دیگر را اضافه یا حذف کنید:`;
+}
+
+export function buildWeekMenuFoods(bySelf) {
+  const foods = [];
+  for (const self of SAMAD_SELVES) {
+    for (const p of bySelf?.[self.id] || []) {
+      if (!p?.foodName || !p?.dayTranslated) continue;
+      if (foods.some((f) => f.selfId === self.id && f.day === p.dayTranslated && f.title === p.foodName)) continue;
+      foods.push({ title: p.foodName, selfId: self.id, price: Math.round(Number(p.price) / 10) || 0, day: p.dayTranslated });
+    }
+  }
+  return foods;
+}
+
+export async function isWeekPickLocked(pool, weekStartDate) {
+  return String((await getLastReservedWeek(pool)) || "").slice(0, 10) === String(weekStartDate).slice(0, 10);
+}
+
+export async function getWeekPickMenu(pool) {
+  const week = getNextSaturday();
+  if (await isWeekPickLocked(pool, week)) return { week, locked: true, foods: [] };
+  const token = await getSamadAccessToken(pool);
+  const bySelf = token ? await fetchAllSelvesWeekPrograms(token, week) : {};
+  if (Object.values(bySelf).flat().some((p) => p?.hideInPanel === false)) return { week, locked: true, foods: [] };
+  return { week, locked: false, foods: buildWeekMenuFoods(bySelf) };
+}
+
+export function buildFoodMenuKeyboard() {
+  return {
+    inline_keyboard: [
+      [{ text: "اولویت‌های عمومی غذا", callback_data: "MENU_PREFERENCE", icon_custom_emoji_id: "6041874690220233085" }],
+      [{ text: "رزرو هفتگی (غذای مشخص هر روز)", callback_data: "WEEK_MENU", icon_custom_emoji_id: "5431897022456145283" }],
+      [{ text: "بازگشت", callback_data: "BACK", icon_custom_emoji_id: "6039539366177541657" }],
+    ],
+  };
+}
+
+export function buildWeekPickText(weekStartDate, picks) {
+  const lines = DAYS.map((day) => {
+    const pick = picks.find((p) => p.english === day.english)?.food;
+    return `• ${day.title}: ${pick ? `<b>${pick.title}</b>` : "<i>اولویت‌های عمومی</i>"}`;
+  });
+
+  return `<tg-emoji emoji-id="5431897022456145283">📅</tg-emoji> <b>رزرو هفتگی</b>
+شروع هفته: <b>${formatLastCheckedProgram(weekStartDate)}</b>
+
+${lines.join("\n")}
+
+<tg-emoji emoji-id="5314346928660554905">⚠️</tg-emoji> برای روزی که غذا انتخاب کنید، فقط همان غذا رزرو می‌شود و اولویت‌های عمومی و رزرو اجباری برای آن روز نادیده گرفته می‌شوند. آن روز حتی اگر جزو روزهای رزرو شما نباشد هم رزرو می‌شود.
+
+یک روز را انتخاب کنید <tg-emoji emoji-id="5470177992950946662">👇</tg-emoji>`;
+}
+
+export function buildWeekPickKeyboard(foods, picks) {
+  const rows = DAYS.filter((day) => foods.some((f) => f.day === day.english)).map((day) => {
+    const pick = picks.find((p) => p.english === day.english)?.food;
+    const btn = { text: pick ? `${day.title}: ${pick.title}` : day.title, callback_data: `WEEK_DAY:${day.id}`, icon_custom_emoji_id: "5431897022456145283" };
+    if (pick) btn.style = "success";
+    return [btn];
+  });
+  rows.push([{ text: "بازگشت", callback_data: "MENU_FOOD", icon_custom_emoji_id: "6039539366177541657" }]);
+  return { inline_keyboard: rows };
+}
+
+export function buildWeekDayKeyboard(day, foods, pick) {
+  const rows = [];
+  for (const self of SAMAD_SELVES) {
+    const items = foods.map((f, i) => ({ ...f, i })).filter((f) => f.day === day.english && f.selfId === self.id);
+    if (!items.length) continue;
+    rows.push([{ text: self.title, callback_data: "WEEK_NOOP", style: "primary" }]);
+    for (const food of items) {
+      const isSelected = pick?.title === food.title && pick?.selfId === food.selfId;
+      const nameBtn = { text: food.title, callback_data: `WEEK_FOOD:${food.i}` };
+      const priceBtn = { text: food.price.toLocaleString("en-US"), callback_data: `WEEK_FOOD:${food.i}`, icon_custom_emoji_id: "5782928157006893436" };
+      if (isSelected) nameBtn.style = priceBtn.style = "success";
+      rows.push([priceBtn, nameBtn]);
+    }
+  }
+  if (pick) rows.push([{ text: "حذف انتخاب (اولویت‌های عمومی)", callback_data: `WEEK_CLEAR:${day.id}`, icon_custom_emoji_id: "5774077015388852135" }]);
+  rows.push([{ text: "بازگشت به روزها", callback_data: "WEEK_HOME", icon_custom_emoji_id: "6039539366177541657" }]);
+  return { inline_keyboard: rows };
 }
 
 export function getNextSaturday() {

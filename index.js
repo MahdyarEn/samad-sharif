@@ -5,8 +5,8 @@ import handleCallback from "./handler/callback.handler.js";
 import handleMessage from "./handler/message.handler.js";
 import { startAutoReserve } from "./auto/scheduler.js";
 import { startDailyMenu } from "./auto/daily-menu.js";
-import { FOODS, normalizeArray, normalizeWaitSelves, verifyTelegramWebAppData } from "./utils/index.js";
-import { saveDays, savefoodPriority, setAutoReserve, setForceReserve, setWaitSelves } from "./db/index.js";
+import { DAYS, FOODS, getWeekPickMenu, normalizeArray, normalizeWaitSelves, verifyTelegramWebAppData } from "./utils/index.js";
+import { getWeekFoodDays, saveDays, savefoodPriority, saveWeekFoods, setAutoReserve, setForceReserve, setWaitSelves } from "./db/index.js";
 import express from "express";
 import cors from "cors";
 
@@ -56,6 +56,7 @@ async function initDb() {
         last_checked_program DATETIME DEFAULT NULL,
         last_error_at DATETIME DEFAULT NULL,
         reserved_days JSON DEFAULT NULL,
+        week_foods JSON DEFAULT NULL,
 
         PRIMARY KEY (id)
       ) ENGINE=InnoDB;
@@ -65,6 +66,12 @@ async function initDb() {
     if (!reservedDaysCol.length) {
       await pool.query(`ALTER TABLE users ADD COLUMN reserved_days JSON DEFAULT NULL`);
       console.log("✅ added users.reserved_days");
+    }
+
+    const [weekFoodsCol] = await pool.query(`SHOW COLUMNS FROM users LIKE 'week_foods'`);
+    if (!weekFoodsCol.length) {
+      await pool.query(`ALTER TABLE users ADD COLUMN week_foods JSON DEFAULT NULL`);
+      console.log("✅ added users.week_foods");
     }
 
     console.log("✅ MySQL connected");
@@ -116,6 +123,19 @@ app.post("/api/get-data", async (req, res) => {
     res.json({ error: "خطایی پیش آمد" });
   }
 });
+app.post("/api/week-menu", async (req, res) => {
+  try {
+    const validate = verifyTelegramWebAppData(req.body?.initData);
+    if (!validate) {
+      return res.status(403).json({ error: "اطلاعات شما معتبر نیست، لطفا مستقیما از ربات وب‌اپ را باز کنید" });
+    }
+    const [[user]] = await pool.query("SELECT week_foods FROM users WHERE id = ?", [validate.id]);
+    const menu = await getWeekPickMenu(pool);
+    res.json({ ...menu, picks: getWeekFoodDays(user, menu.week) });
+  } catch (error) {
+    res.json({ error: "خطایی پیش آمد" });
+  }
+});
 app.post("/api/save-data", async (req, res) => {
   try {
     const initData = req.body?.initData;
@@ -130,7 +150,17 @@ app.post("/api/save-data", async (req, res) => {
     if (!rows?.username) {
       return res.status(403).json({ error: "لطفا ابتدا از طریق ربات وارد اکانت سماد خود شوید" });
     }
-    const { foods, days, auto_reserve, force_reserve, wait_selves } = req?.body;
+    const { foods, days, auto_reserve, force_reserve, wait_selves, week_foods } = req?.body;
+    if (Array.isArray(week_foods)) {
+      const menu = await getWeekPickMenu(pool);
+      if (menu.locked) return res.status(403).json({ error: "رزرو هفته بعد باز شده و انتخاب غذای هفتگی بسته است" });
+      const picks = DAYS.map((day) => {
+        const pick = week_foods.find((p) => p?.english === day.english);
+        const food = menu.foods.find((f) => f.day === day.english && f.title === pick?.title && f.selfId === Number(pick?.selfId));
+        return food && { id: day.id, title: day.title, english: day.english, food: { title: food.title, selfId: food.selfId, price: food.price } };
+      }).filter(Boolean);
+      await saveWeekFoods(pool, userID, menu.week, picks);
+    }
     await savefoodPriority(pool, userID, foods);
     await saveDays(pool, userID, days);
     if (typeof auto_reserve === "boolean") await setAutoReserve(pool, userID, auto_reserve);

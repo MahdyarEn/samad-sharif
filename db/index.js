@@ -31,8 +31,28 @@ function readReservedDaysState(raw, weekStartDate) {
   return { week: weekStartDate, days, attempts };
 }
 
+export function getWeekFoodDays(user, weekStartDate) {
+  const state = parseJson(user?.week_foods, null);
+  if (!sameWeekKey(state?.week, weekStartDate) || !Array.isArray(state?.days)) return [];
+  return state.days.filter((d) => d?.english && d?.food?.title);
+}
+
+export async function setWeekFood(pool, userId, weekStartDate, day, food) {
+  const user = await getUser(userId, pool);
+  const days = getWeekFoodDays(user, weekStartDate).filter((d) => d.english !== day.english);
+  if (food) days.push({ id: day.id, title: day.title, english: day.english, food });
+  await saveWeekFoods(pool, userId, weekStartDate, days);
+}
+
+export async function saveWeekFoods(pool, userId, weekStartDate, days) {
+  days.sort((a, b) => a.id - b.id);
+  await pool.query("UPDATE users SET week_foods = ? WHERE id = ?", [JSON.stringify({ week: weekStartDate, days }), userId]);
+}
+
 export function getPendingReserveDays(user, weekStartDate) {
-  const wanted = Array.isArray(user?.days) ? user.days.filter((d) => d?.english) : [];
+  const days = Array.isArray(user?.days) ? user.days.filter((d) => d?.english) : [];
+  const extra = getWeekFoodDays(user, weekStartDate).filter((w) => !days.some((d) => d.english === w.english));
+  const wanted = [...days, ...extra].sort((a, b) => a.id - b.id);
   if (!wanted.length) return [];
   if (sameWeekKey(user?.last_checked_program, weekStartDate)) return [];
   const reserved = new Set(readReservedDaysState(user?.reserved_days, weekStartDate).days);
@@ -89,8 +109,7 @@ FROM users
 WHERE auto_reserve = 1
   AND username IS NOT NULL
   AND username <> ''
-  AND food_priority IS NOT NULL
-  AND food_priority <> ''
+  AND ((food_priority IS NOT NULL AND food_priority <> '') OR week_foods IS NOT NULL)
   AND (
     last_checked_program IS NULL
     OR DATE(last_checked_program) <> ?
@@ -112,6 +131,7 @@ WHERE auto_reserve = 1
         reserved_days: parseJson(u.reserved_days, null),
         food_priority: parseJson(u.food_priority, []) || [],
         days: parseJson(u.days, []) || [],
+        week_foods: parseJson(u.week_foods, null),
         force_reserve: Number(u.force_reserve) === 1,
         wait_selves: Array.isArray(wait) && wait.length ? wait.map(Number) : [1],
       };
