@@ -2,7 +2,7 @@ import { getSelfWeekPrograms } from "../api/services.js";
 import { getLastReservedWeek } from "../db/index.js";
 import { getNextSaturday, isSelfOpenedInPanel, SAMAD_SELVES } from "../utils/index.js";
 
-function sameWeek(a, b) {
+export function sameWeek(a, b) {
   if (!a || !b) return false;
   return String(a).slice(0, 10) === String(b).slice(0, 10);
 }

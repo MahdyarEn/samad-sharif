@@ -19,7 +19,7 @@ import {
   buildWeekPickText,
   DAYS,
   FOODS,
-  getCurrentWeekSaturday,
+  getStatusWeekSaturday,
   getDayReserves,
   getUnconsumedStatusDays,
   getWeekPickMenu,
@@ -643,7 +643,7 @@ export default async function handleCallback(bot, query, pool, userState) {
           break;
         }
 
-        const weekStartDate = getCurrentWeekSaturday();
+        const weekStartDate = getStatusWeekSaturday();
         const res = await fetchUserReserves(auth.token, weekStartDate);
         if (res?.status !== 200 || isInvalidToken(res?.data)) {
           await bot.editMessageText(`<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> دریافت رزروها ممکن نشد، بعدا دوباره تلاش کنید.`, {

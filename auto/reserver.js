@@ -256,20 +256,19 @@ async function reserveForUser(user, weekStartDate, pool, bot) {
               ? `<blockquote>${lastFailMessage}</blockquote>`
               : `<blockquote>همه گزینه‌های قابل رزرو پر بودند یا در دسترس نبودند.</blockquote>`;
 
-        if (!onlyFullOrMissing && triedAnyPriority && attempt < MAX_DAY_ATTEMPTS) {
+        if (!onlyFullOrMissing && attempt < MAX_DAY_ATTEMPTS) {
           dayNeedsRetry = true;
         }
 
         const retryHint = dayNeedsRetry
           ? `\nدوباره تلاش می‌شود (${attemptLabel}).`
-          : attempt >= MAX_DAY_ATTEMPTS && triedAnyPriority && !onlyFullOrMissing
+          : attempt >= MAX_DAY_ATTEMPTS && !onlyFullOrMissing
             ? `\n${attemptLabel}: دیگر برای این روز تلاش نمی‌شود.`
             : "";
         const nextHint = isLastDay ? "" : "\nدر حال رفتن به روز بعد…";
         bot.sendMessage(
           user.id,
           `<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> رزرو غذا برای روز <b>${day.title}</b> انجام نشد
-<code>${attemptLabel}</code>
 ${detail}${retryHint}${nextHint}`,
           { parse_mode: "HTML" },
         );

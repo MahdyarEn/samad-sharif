@@ -1,6 +1,15 @@
 import cron from "node-cron";
-import { checkNewWeek } from "./checker.js";
-import { getAutoReserveUsers, getChannelNotifyState, getChannelWeekMenuState, setChannelNotifyState, setChannelWeekMenuState, setLastReservedWeek } from "../db/index.js";
+import { checkNewWeek, sameWeek } from "./checker.js";
+import {
+  getAutoReserveUsers,
+  getChannelNotifyState,
+  getChannelWeekMenuState,
+  getFullyOpenWeek,
+  setChannelNotifyState,
+  setChannelWeekMenuState,
+  setFullyOpenWeek,
+  setLastReservedWeek,
+} from "../db/index.js";
 import { reserveForUsers } from "./reserver.js";
 import {
   buildWeekMenuFingerprint,
@@ -13,6 +22,7 @@ import {
   getSelvesWithProgram,
   getVisibleDaysFa,
   isSelfOpenedInPanel,
+  isWeekFullyOpen,
   SAMAD_SELVES,
   sendRichMessage,
 } from "../utils/index.js";
@@ -334,6 +344,13 @@ export function startAutoReserve(pool, bot) {
     running = true;
 
     try {
+      const nextWeek = getNextSaturday();
+      const fullyOpen = await getFullyOpenWeek(pool);
+      if (sameWeek(fullyOpen?.week, nextWeek) && fullyOpen.settled) {
+        console.log("[CRON] week fully open, skip until saturday");
+        return;
+      }
+
       const adminToken = await getSamadAccessToken(pool);
       if (!adminToken) {
         console.log("[CRON] no admin token");
@@ -361,6 +378,11 @@ export function startAutoReserve(pool, bot) {
       }
 
       console.log("[CRON] reservation done ✅");
+
+      if (!sameWeek(fullyOpen?.week, nextWeek) && isWeekFullyOpen(await fetchAllSelvesWeekPrograms(adminToken, nextWeek))) {
+        await setFullyOpenWeek(pool, nextWeek);
+        console.log("[CRON] week fully open ✅", nextWeek);
+      }
     } catch (e) {
       console.error("[CRON] error:", e);
     } finally {

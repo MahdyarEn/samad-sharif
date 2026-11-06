@@ -503,8 +503,10 @@ export function getNextSaturday() {
   return `${saturday.getUTCFullYear()}-${String(saturday.getUTCMonth() + 1).padStart(2, "0")}-${String(saturday.getUTCDate()).padStart(2, "0")}+00:00:00`;
 }
 
-export function getCurrentWeekSaturday() {
+export function getStatusWeekSaturday() {
   const now = new Date();
+  // thursday and friday show the coming week
+  if ([4, 5].includes(now.getUTCDay())) return getNextSaturday();
   const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const back = (d.getUTCDay() + 1) % 7;
   d.setUTCDate(d.getUTCDate() - back);
@@ -898,6 +900,10 @@ export async function fetchAllSelvesWeekPrograms(token, weekStartDate) {
 
 export function getSelvesWithProgram(bySelf) {
   return SAMAD_SELVES.filter((s) => (bySelf?.[s.id] || []).length > 0);
+}
+
+export function isWeekFullyOpen(bySelf) {
+  return SAMAD_SELVES.every((s) => (bySelf?.[s.id] || []).length > 0 && bySelf[s.id].every((p) => p?.hideInPanel === false));
 }
 
 export function buildWeekMenuFingerprint(bySelf) {

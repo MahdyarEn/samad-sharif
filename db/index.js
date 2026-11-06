@@ -167,6 +167,19 @@ export async function setLastReservedWeek(pool, weekStartDate) {
   );
 }
 
+export async function getFullyOpenWeek(pool) {
+  const [rows] = await pool.query(`SELECT value, updated_at < NOW() - INTERVAL 30 MINUTE AS settled FROM system_state WHERE \`key\`='fully_open_week'`);
+  return rows[0] ? { week: rows[0].value, settled: Number(rows[0].settled) === 1 } : null;
+}
+
+export async function setFullyOpenWeek(pool, weekStartDate) {
+  await pool.query(
+    `REPLACE INTO system_state (\`key\`, value)
+     VALUES ('fully_open_week', ?)`,
+    [weekStartDate]
+  );
+}
+
 export async function getChannelNotifyState(pool, weekStartDate) {
   const [rows] = await pool.query(`SELECT value FROM system_state WHERE \`key\`='channel_notified_selves'`);
   const raw = rows[0]?.value;
