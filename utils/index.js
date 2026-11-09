@@ -4,7 +4,7 @@ import {
   clearSession,
   getAdminAccessToken,
   getAdminRefreshToken,
-  getLastReservedWeek,
+  getFullyOpenWeek,
   saveSession,
   setAdminAccessToken,
   setAdminRefreshToken,
@@ -435,7 +435,7 @@ export function buildWeekMenuFoods(bySelf) {
 }
 
 export async function isWeekPickLocked(pool, weekStartDate) {
-  return String((await getLastReservedWeek(pool)) || "").slice(0, 10) === String(weekStartDate).slice(0, 10);
+  return String((await getFullyOpenWeek(pool))?.week || "").slice(0, 10) === String(weekStartDate).slice(0, 10);
 }
 
 export async function getWeekPickMenu(pool) {
@@ -443,7 +443,7 @@ export async function getWeekPickMenu(pool) {
   if (await isWeekPickLocked(pool, week)) return { week, locked: true, foods: [] };
   const token = await getSamadAccessToken(pool);
   const bySelf = token ? await fetchAllSelvesWeekPrograms(token, week) : {};
-  if (Object.values(bySelf).flat().some((p) => p?.hideInPanel === false)) return { week, locked: true, foods: [] };
+  if (isWeekFullyOpen(bySelf)) return { week, locked: true, foods: [] };
   return { week, locked: false, foods: buildWeekMenuFoods(bySelf) };
 }
 
@@ -792,10 +792,17 @@ export async function getSamadAccessToken(pool, bot) {
       if (login.refresh_token) await setAdminRefreshToken(pool, login.refresh_token);
       return login.access_token;
     }
-    console.error("[ADMIN] token renew failed", login);
-    if (refreshToken !== "" && bot && config.ADMIN_ID) {
-      await setAdminRefreshToken(pool, "");
-      await bot.sendMessage(config.ADMIN_ID, ADMIN_EXPIRED_MSG, { reply_markup: adminLoginKeyboard(), parse_mode: "HTML" }).catch(() => {});
+    console.error("[ADMIN] token renew failed", refreshToken === "" ? "waiting for admin login" : login);
+    if (refreshToken !== "" && bot) {
+      if (!config.ADMIN_ID) {
+        console.error("[ADMIN] ADMIN_ID is not set, cannot ask admin to log in");
+      } else {
+        const sent = await bot
+          .sendMessage(config.ADMIN_ID, ADMIN_EXPIRED_MSG, { reply_markup: adminLoginKeyboard(), parse_mode: "HTML" })
+          .then(() => true)
+          .catch((e) => console.error("[ADMIN] notify failed", e?.message || e));
+        if (sent) await setAdminRefreshToken(pool, "");
+      }
     }
   } catch (e) {
     console.error("[ADMIN] token renew unavailable", e?.message || e);
