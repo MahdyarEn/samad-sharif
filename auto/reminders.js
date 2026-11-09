@@ -1,6 +1,6 @@
-import { fetchUserProfile, isInvalidToken, loginUser } from "../api/services.js";
-import { getLoggedInUsers, saveSession } from "../db/index.js";
-import { buildHomeKeyboard, normalizeArray, normalizeWaitSelves, SAMAD_SELVES } from "../utils/index.js";
+import { fetchUserProfile, isInvalidToken } from "../api/services.js";
+import { getLoggedInUsers } from "../db/index.js";
+import { buildHomeKeyboard, normalizeArray, normalizeWaitSelves, renewSession, SAMAD_SELVES } from "../utils/index.js";
 
 const DELAY_MS = 400;
 
@@ -8,16 +8,14 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-async function getProfileCredit(user, pool) {
-  let token = user.access_token;
-  let result = await fetchUserProfile(token).catch(() => null);
+// returns false when the session expired and the user was logged out
+async function getProfileCredit(user, pool, bot) {
+  let result = await fetchUserProfile(user.access_token).catch(() => null);
 
-  if (!result || isInvalidToken(result)) {
-    const login = await loginUser(user.username, user.password).catch(() => null);
-    if (!login?.access_token) return null;
-    await saveSession(pool, user.id, user.username, user.password, login);
-    token = login.access_token;
-    result = await fetchUserProfile(token).catch(() => null);
+  if (isInvalidToken(result)) {
+    const renewed = await renewSession(pool, user, bot);
+    if (!renewed.ok) return renewed.reason === "expired" ? false : null;
+    result = await fetchUserProfile(renewed.token).catch(() => null);
   }
 
   if (!result?.payload) return null;
@@ -94,7 +92,8 @@ export async function runWeeklyReminders(pool, bot) {
       if (!autoOn) {
         text = buildOffReminderText();
       } else {
-        const creditToman = await getProfileCredit(user, pool);
+        const creditToman = await getProfileCredit(user, pool, bot);
+        if (creditToman === false) continue;
         text = buildOnReminderText({
           creditToman,
           forceOn,
@@ -118,4 +117,22 @@ export async function runWeeklyReminders(pool, bot) {
   }
 
   console.log("[REMIND] done ✅ sent:", sent);
+}
+
+export async function checkUserSessions(pool, bot) {
+  const users = await getLoggedInUsers(pool);
+  let expired = 0;
+  for (const user of users) {
+    try {
+      const profile = user.access_token ? await fetchUserProfile(user.access_token).catch(() => null) : null;
+      if (!user.access_token || isInvalidToken(profile)) {
+        const renewed = await renewSession(pool, user, bot);
+        if (renewed.reason === "expired") expired++;
+      }
+    } catch (e) {
+      console.error("[SESSION] check failed:", user.id, e.message);
+    }
+    await sleep(DELAY_MS);
+  }
+  console.log(`[SESSION] checked=${users.length} expired=${expired}`);
 }

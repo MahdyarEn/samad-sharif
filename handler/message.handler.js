@@ -1,6 +1,7 @@
-import { isBadCredentials, loginUser } from "../api/services.js";
-import { getUser, saveSession } from "../db/index.js";
-import { backKeyboard, buildHomeKeyboard, buildWelcomeMessage, isPriorityUser, sendRichMessage } from "../utils/index.js";
+import { isBadCredentials, isInvalidCaptcha, loginUser } from "../api/services.js";
+import config from "../config.js";
+import { getUser, saveSession, setAdminAccessToken, setAdminRefreshToken } from "../db/index.js";
+import { adminLoginKeyboard, backKeyboard, buildHomeKeyboard, buildWelcomeMessage, isPriorityUser, sendLoginCaptcha, sendRichMessage } from "../utils/index.js";
 
 export default async function handleMessage(bot, msg, pool, userState) {
   try {
@@ -64,12 +65,43 @@ export default async function handleMessage(bot, msg, pool, userState) {
 
         case "LOGIN_PASSWORD":
           state.data.password = text;
+          state.step = "LOGIN_CAPTCHA";
+          if (!(await sendLoginCaptcha(bot, fromId, state))) userState.delete(fromId);
+          return;
 
+        case "ADMIN_CAPTCHA": {
+          const login = await loginUser(config.SAMAD_USERNAME, config.SAMAD_PASSWORD, { ...state.data.captcha, text }).catch((e) => {
+            console.error("[ADMIN] login unavailable", e?.message || e);
+            return null;
+          });
+          if (login?.access_token) {
+            userState.delete(fromId);
+            await setAdminAccessToken(pool, login.access_token);
+            await setAdminRefreshToken(pool, login.refresh_token || "");
+            await bot.sendMessage(fromId, `<tg-emoji emoji-id="5843528161278562947">✅</tg-emoji> توکن‌های ادمین با موفقیت ذخیره شدند.`, {
+              reply_markup: backKeyboard(),
+              parse_mode: "HTML",
+            });
+          } else if (isInvalidCaptcha(login)) {
+            if (!(await sendLoginCaptcha(bot, fromId, state, "کد امنیتی اشتباه بود یا منقضی شد."))) userState.delete(fromId);
+          } else {
+            userState.delete(fromId);
+            const msg = isBadCredentials(login)
+              ? `<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> یوزرنیم یا پسورد ادمین داخل .env اشتباه است.`
+              : login?.messageFa
+                ? `<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> ${login.messageFa}`
+                : `<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> سماد موقتا در دسترس نیست، بعدا دوباره تلاش کنید.`;
+            await bot.sendMessage(fromId, msg, { reply_markup: adminLoginKeyboard(), parse_mode: "HTML" });
+          }
+          return;
+        }
+
+        case "LOGIN_CAPTCHA":
           await bot.sendMessage(fromId, `<tg-emoji emoji-id="5451732530048802485">⏳</tg-emoji> در حال ورود...`, { parse_mode: "HTML" });
 
           let res;
           try {
-            res = await loginUser(state.data.username, state.data.password);
+            res = await loginUser(state.data.username, state.data.password, { ...state.data.captcha, text });
           } catch (loginErr) {
             console.error("[LOGIN] samad unavailable", loginErr?.message || loginErr);
             userState.delete(fromId);
@@ -81,7 +113,7 @@ export default async function handleMessage(bot, msg, pool, userState) {
           }
 
           if (res?.access_token) {
-            await saveSession(pool, fromId, state.data.username, text, res);
+            await saveSession(pool, fromId, state.data.username, state.data.password, res);
             await bot.sendMessage(
               fromId,
               `<tg-emoji emoji-id="5843528161278562947">✅</tg-emoji> ورود با موفقیت به اکانت شما انجام شد
@@ -90,7 +122,7 @@ export default async function handleMessage(bot, msg, pool, userState) {
 
 <tg-emoji emoji-id="5879770735999717115">👤</tg-emoji> <b>نام و نام خانوادگی:</b> ${res.first_name} ${res.last_name}
 <tg-emoji emoji-id="5920344347152224466">🧑‍💻</tg-emoji> <b>یوزرنیم اکانت سماد:</b> <span class="tg-spoiler">${state.data.username}</span>
-<tg-emoji emoji-id="5472308992514464048">🔐</tg-emoji> <b>پسورد اکانت:</b> <span class="tg-spoiler">${text}</span>
+<tg-emoji emoji-id="5472308992514464048">🔐</tg-emoji> <b>پسورد اکانت:</b> <span class="tg-spoiler">${state.data.password}</span>
 
 <tg-emoji emoji-id="5881702736843511327">⚠️</tg-emoji> توجه داشته باشید که این اطلاعات صرفا برای ورود به سایت سماد استفاده میشوند و کاملا بصورت رمزگذاری شده ذخیره می‌شوند
 
@@ -98,11 +130,15 @@ export default async function handleMessage(bot, msg, pool, userState) {
               { reply_markup: buildHomeKeyboard(true), parse_mode: "HTML" },
             );
             userState.delete(fromId);
+          } else if (isInvalidCaptcha(res)) {
+            if (!(await sendLoginCaptcha(bot, fromId, state, "کد امنیتی اشتباه بود یا منقضی شد."))) userState.delete(fromId);
           } else {
             userState.delete(fromId);
             const msg = isBadCredentials(res)
               ? `<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> اطلاعات کاربری وارد شده صحت ندارد، عملیات لغو شد.`
-              : `<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> سماد موقتا در دسترس نیست، بعدا دوباره تلاش کنید.`;
+              : res?.messageFa
+                ? `<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> ${res.messageFa}`
+                : `<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> سماد موقتا در دسترس نیست، بعدا دوباره تلاش کنید.`;
             await bot.sendMessage(fromId, msg, { reply_markup: buildHomeKeyboard(false), parse_mode: "HTML" });
           }
 

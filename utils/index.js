@@ -1,6 +1,14 @@
-import { fetchUserProfile, getSelfWeekPrograms, isInvalidToken, loginUser } from "../api/services.js";
+import { fetchCaptcha, fetchUserProfile, getSelfWeekPrograms, isInvalidToken, refreshSession } from "../api/services.js";
 import config from "../config.js";
-import { getAdminAccessToken, getLastReservedWeek, setAdminAccessToken } from "../db/index.js";
+import {
+  clearSession,
+  getAdminAccessToken,
+  getAdminRefreshToken,
+  getLastReservedWeek,
+  saveSession,
+  setAdminAccessToken,
+  setAdminRefreshToken,
+} from "../db/index.js";
 import crypto from "crypto";
 import * as jalaali from "jalaali-js";
 export function buildHomeKeyboard(isLogined) {
@@ -768,7 +776,7 @@ export function buildSettingsKeyboard(user) {
   };
 }
 
-export async function getSamadAccessToken(pool) {
+export async function getSamadAccessToken(pool, bot) {
   const cached = await getAdminAccessToken(pool);
   if (cached) {
     const profile = await fetchUserProfile(cached).catch(() => null);
@@ -776,15 +784,94 @@ export async function getSamadAccessToken(pool) {
   }
 
   try {
-    const login = await loginUser(config.SAMAD_USERNAME, config.SAMAD_PASSWORD);
+    // null means never set, empty means the admin was already asked to log in
+    const refreshToken = await getAdminRefreshToken(pool);
+    const login = refreshToken ? await refreshSession(refreshToken) : null;
     if (login?.access_token) {
       await setAdminAccessToken(pool, login.access_token);
+      if (login.refresh_token) await setAdminRefreshToken(pool, login.refresh_token);
       return login.access_token;
     }
+    console.error("[ADMIN] token renew failed", login);
+    if (refreshToken !== "" && bot && config.ADMIN_ID) {
+      await setAdminRefreshToken(pool, "");
+      await bot.sendMessage(config.ADMIN_ID, ADMIN_EXPIRED_MSG, { reply_markup: adminLoginKeyboard(), parse_mode: "HTML" }).catch(() => {});
+    }
   } catch (e) {
-    console.error("[ADMIN] login failed", e?.message || e);
+    console.error("[ADMIN] token renew unavailable", e?.message || e);
   }
   return null;
+}
+
+const ADMIN_EXPIRED_MSG = `<tg-emoji emoji-id="5881702736843511327">⚠️</tg-emoji> توکن ادمین سماد منقضی شده و منوی کانال و رزرو خودکار متوقف شده‌اند.
+
+برای ورود مجدد با اکانت ادمین، دکمه زیر را بزنید.`;
+
+export function adminLoginKeyboard() {
+  return {
+    inline_keyboard: [[{ text: "ورود مجدد ادمین", callback_data: "ADMIN_LOGIN", icon_custom_emoji_id: "5778570255555105942" }]],
+  };
+}
+
+export async function sendLoginCaptcha(bot, fromId, state, note = "") {
+  const nonce = crypto.randomUUID();
+  const captcha = await fetchCaptcha(nonce).catch((e) => console.error("[LOGIN] captcha unavailable", e?.message || e));
+  if (!captcha?.image || !captcha?.validation) {
+    await bot.sendMessage(fromId, `<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> سماد موقتا در دسترس نیست، بعدا دوباره تلاش کنید.`, {
+      reply_markup: backKeyboard(),
+      parse_mode: "HTML",
+    });
+    return false;
+  }
+
+  state.data.captcha = { nonce, validation: captcha.validation };
+  await bot.sendPhoto(
+    fromId,
+    Buffer.from(captcha.image, "base64"),
+    {
+      caption: `${note ? `<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> ${note}\n\n` : ""}<tg-emoji emoji-id="5472308992514464048">🔐</tg-emoji> کد امنیتی داخل تصویر رو وارد کن:`,
+      reply_markup: backKeyboard(),
+      parse_mode: "HTML",
+    },
+    { filename: "captcha.png", contentType: "image/png" },
+  );
+  return true;
+}
+
+export const SESSION_EXPIRED_MSG = `<tg-emoji emoji-id="5881702736843511327">⚠️</tg-emoji> <b>نیاز به ورود مجدد به سماد</b>
+
+با توجه به سیاست‌های جدید سماد، ورود به سامانه از این پس نیاز به وارد کردن کد امنیتی (کپچا) دارد و ربات دیگر نمی‌تواند به‌صورت خودکار با رمز شما وارد شود.
+
+نشست فعلی شما منقضی شده و تا زمان ورود مجدد، <b>رزرو خودکار برای شما انجام نمی‌شود</b>.
+
+<tg-emoji emoji-id="5469735272017043817">👈</tg-emoji> لطفا با دکمه زیر یک بار دوباره وارد شوید و کد امنیتی را وارد کنید. تنظیمات رزرو و اولویت‌های غذای شما حفظ شده‌اند.`;
+
+// renews the user's access token with the refresh token, logs the user out if it is expired
+export async function renewSession(pool, user, bot) {
+  let data = null;
+  if (user?.refresh_token) {
+    try {
+      data = await refreshSession(user.refresh_token);
+    } catch (e) {
+      console.error(`[SESSION] samad unavailable user=${user.id}`, e?.message || e);
+      return { ok: false, reason: "unavailable" };
+    }
+  }
+
+  if (data?.access_token) {
+    const session = { ...data, refresh_token: data.refresh_token || user.refresh_token };
+    await saveSession(pool, user.id, user.username, user.password, session);
+    user.access_token = session.access_token;
+    user.refresh_token = session.refresh_token;
+    return { ok: true, token: session.access_token };
+  }
+
+  console.log(`[SESSION] expired user=${user.id}`, data);
+  await clearSession(pool, user.id);
+  if (bot) {
+    await bot.sendMessage(user.id, SESSION_EXPIRED_MSG, { reply_markup: buildHomeKeyboard(false), parse_mode: "HTML" }).catch(() => {});
+  }
+  return { ok: false, reason: "expired" };
 }
 export function normalizeArray(value) {
   if (!value) return [];

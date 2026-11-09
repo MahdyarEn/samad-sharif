@@ -25,7 +25,7 @@ export function createDailyMenuTick(pool, bot, { channelId = config.CHANNEL_ID, 
         sentDate = date;
         return;
       }
-      const menu = await fetchMenu(pool, now);
+      const menu = await fetchMenu(pool, now, bot);
       if (menu.date !== date || DAILY_MENU_SELVES.some((self) => !Array.isArray(menu.bySelf[self.id]))) {
         throw new Error("Daily menu incomplete; retry on next tick");
       }

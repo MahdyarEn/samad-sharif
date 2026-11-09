@@ -1,5 +1,6 @@
 import QRCode from "qrcode";
-import { getUser, getWeekFoodDays, logoutUser, saveDays, savefoodPriority, saveSession, setAutoReserve, setForceReserve, setWaitSelves, setWeekFood } from "../db/index.js";
+import config from "../config.js";
+import { getUser, getWeekFoodDays, logoutUser, saveDays, savefoodPriority, setAutoReserve, setForceReserve, setWaitSelves, setWeekFood } from "../db/index.js";
 import {
   backKeyboard,
   buildAccountKeyboard,
@@ -26,30 +27,20 @@ import {
   isWeekPickLocked,
   normalizeArray,
   normalizeWaitSelves,
+  renewSession,
   SAMAD_SELVES,
+  sendLoginCaptcha,
+  SESSION_EXPIRED_MSG,
   statusDayBackKeyboard,
 } from "../utils/index.js";
-import { fetchForgetCardCode, fetchUserProfile, fetchUserReserves, isBadCredentials, isInvalidToken, loginUser } from "../api/services.js";
+import { fetchForgetCardCode, fetchUserProfile, fetchUserReserves, isInvalidToken } from "../api/services.js";
 
 const WEEK_LOCKED_MSG = "رزرو هفته بعد باز شده و انتخاب غذای هفتگی برای این هفته بسته است";
 
 async function ensureSamadToken(user, pool) {
-  let token = user?.access_token;
-  let probe = await fetchUserProfile(token).catch(() => null);
-  if (!isInvalidToken(probe) && probe?.payload) return { ok: true, token, user };
-
-  let login;
-  try {
-    login = await loginUser(user.username, user.password);
-  } catch (e) {
-    return { ok: false, reason: "unavailable", error: e };
-  }
-
-  if (login?.access_token) {
-    await saveSession(pool, user.id, user.username, user.password, login);
-    return { ok: true, token: login.access_token, user };
-  }
-  if (isBadCredentials(login)) return { ok: false, reason: "bad_credentials" };
+  const probe = await fetchUserProfile(user?.access_token).catch(() => null);
+  if (isInvalidToken(probe)) return renewSession(pool, user);
+  if (probe?.payload) return { ok: true, token: user.access_token };
   return { ok: false, reason: "unavailable" };
 }
 
@@ -75,6 +66,14 @@ export default async function handleCallback(bot, query, pool, userState) {
 
       await bot.deleteMessage(fromId, messageId);
       await bot.sendMessage(fromId, `<tg-emoji emoji-id="6042137469204303531">🏠</tg-emoji> به منوی اصلی بازگشتید`, { reply_markup: buildHomeKeyboard(!!user.username), parse_mode: "HTML" });
+      break;
+    }
+
+    case data === "ADMIN_LOGIN": {
+      if (String(fromId) !== String(config.ADMIN_ID)) break;
+      const state = { step: "ADMIN_CAPTCHA", data: {} };
+      userState.set(fromId, state);
+      if (!(await sendLoginCaptcha(bot, fromId, state))) userState.delete(fromId);
       break;
     }
 
@@ -509,37 +508,17 @@ export default async function handleCallback(bot, query, pool, userState) {
 
         let result = await fetchUserProfile(getUserInfo?.access_token).catch(() => null);
         if (isInvalidToken(result)) {
-          let login;
-          try {
-            login = await loginUser(getUserInfo.username, getUserInfo.password);
-          } catch (loginErr) {
-            console.error("[ACCOUNT_INFO] login unavailable", loginErr?.message || loginErr);
-            await bot.editMessageText(`<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> سماد موقتا در دسترس نیست، بعدا دوباره تلاش کنید.`, {
+          const renewed = await renewSession(pool, getUserInfo);
+          if (renewed.ok) {
+            result = await fetchUserProfile(renewed.token).catch(() => null);
+          } else if (renewed.reason === "expired") {
+            userState.delete(fromId);
+            await bot.editMessageText(SESSION_EXPIRED_MSG, {
               chat_id: fromId,
               message_id: loadingId,
               parse_mode: "HTML",
-              reply_markup: buildAccountKeyboard(),
+              reply_markup: buildHomeKeyboard(false),
             });
-            return;
-          }
-
-          if (login?.access_token) {
-            await saveSession(pool, getUserInfo.id, getUserInfo.username, getUserInfo.password, login);
-            result = await fetchUserProfile(login.access_token).catch(() => null);
-          } else if (isBadCredentials(login)) {
-            await logoutUser(pool, fromId);
-            userState.delete(fromId);
-            await bot.editMessageText(
-              `<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> ورود به سماد با رمز ذخیره‌شده ممکن نشد.
-
-رمز عبور سماد اشتباه است؛ لطفا دوباره لاگین کنید.`,
-              {
-                chat_id: fromId,
-                message_id: loadingId,
-                parse_mode: "HTML",
-                reply_markup: buildHomeKeyboard(false),
-              },
-            );
             return;
           } else {
             await bot.editMessageText(`<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> سماد موقتا در دسترس نیست، بعدا دوباره تلاش کنید.`, {
@@ -618,20 +597,14 @@ export default async function handleCallback(bot, query, pool, userState) {
 
         const auth = await ensureSamadToken(dbUser, pool);
         if (!auth.ok) {
-          if (auth.reason === "bad_credentials") {
-            await logoutUser(pool, fromId);
+          if (auth.reason === "expired") {
             userState.delete(fromId);
-            await bot.editMessageText(
-              `<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> ورود به سماد با رمز ذخیره‌شده ممکن نشد.
-
-رمز عبور سماد اشتباه است؛ لطفا دوباره لاگین کنید.`,
-              {
-                chat_id: fromId,
-                message_id: loadingId,
-                parse_mode: "HTML",
-                reply_markup: buildHomeKeyboard(false),
-              },
-            );
+            await bot.editMessageText(SESSION_EXPIRED_MSG, {
+              chat_id: fromId,
+              message_id: loadingId,
+              parse_mode: "HTML",
+              reply_markup: buildHomeKeyboard(false),
+            });
           } else {
             await bot.editMessageText(`<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> سماد موقتا در دسترس نیست، بعدا دوباره تلاش کنید.`, {
               chat_id: fromId,

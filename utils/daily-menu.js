@@ -70,9 +70,9 @@ export function buildDailyMenuRichMessage(date, bySelf) {
   return `<h2>🍽 ناهار امروز چیه!؟</h2><p>📆 ${escapeHtml(dateFa)}</p>${sections.join("\n")}<p>@SharifSamad</p>`;
 }
 
-export async function fetchDailyMenu(pool, now = new Date()) {
+export async function fetchDailyMenu(pool, now = new Date(), bot) {
   const { date, weekStartDate } = getDailyMenuDates(now);
-  const token = await getSamadAccessToken(pool);
+  const token = await getSamadAccessToken(pool, bot);
   if (!token) throw new Error("Samad login failed");
   const bySelf = {};
   await Promise.all(

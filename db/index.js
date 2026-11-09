@@ -90,7 +90,7 @@ export async function saveDays(pool, userId, days) {
 
 export async function getLoggedInUsers(pool) {
   const [rows] = await pool.query(`
-SELECT id, username, password, access_token, auto_reserve, force_reserve, wait_selves, food_priority, days
+SELECT id, username, password, access_token, refresh_token, auto_reserve, force_reserve, wait_selves, food_priority, days
 FROM users
 WHERE username IS NOT NULL
   AND username <> ''
@@ -126,6 +126,7 @@ WHERE auto_reserve = 1
         username: u.username,
         password: u.password,
         access_token: u.access_token,
+        refresh_token: u.refresh_token,
         created_at: u.created_at,
         last_checked_program: u.last_checked_program,
         reserved_days: parseJson(u.reserved_days, null),
@@ -294,6 +295,26 @@ export async function setAdminAccessToken(pool, accessToken) {
     `REPLACE INTO system_state (\`key\`, value)
      VALUES ('samad_accessToken', ?)`,
     [accessToken]
+  );
+}
+
+export async function getAdminRefreshToken(pool) {
+  const [rows] = await pool.query(`SELECT value FROM system_state WHERE \`key\`='samad_refreshToken'`);
+  return rows[0]?.value ?? null;
+}
+
+export async function setAdminRefreshToken(pool, refreshToken) {
+  await pool.query(
+    `REPLACE INTO system_state (\`key\`, value)
+     VALUES ('samad_refreshToken', ?)`,
+    [refreshToken]
+  );
+}
+
+export async function clearSession(pool, telegramId) {
+  await pool.query(
+    `UPDATE users SET username = NULL, password = NULL, access_token = NULL, refresh_token = NULL, expires_at = NULL WHERE id = ?`,
+    [telegramId]
   );
 }
 

@@ -1,14 +1,14 @@
-import { fetchUserProfile, getSelfWeekPrograms, isBadCredentials, isInvalidToken, loginUser, reserveFood } from "../api/services.js";
-import { getPendingReserveDays, getWeekFoodDays, logoutUser, saveSession, setUserLastCheckedProgram, touchReservedDay } from "../db/index.js";
+import { fetchUserProfile, getSelfWeekPrograms, isInvalidToken, reserveFood } from "../api/services.js";
+import { getPendingReserveDays, getWeekFoodDays, setUserLastCheckedProgram, touchReservedDay } from "../db/index.js";
 import {
   areSelvesReady,
-  buildHomeKeyboard,
   flattenWeekPrograms,
   getReserveSelfIds,
   getSelfIdsForFood,
   normalizeArray,
   normalizeFoodName,
   resolveSelfId,
+  renewSession,
   resolveWaitSelves,
   isPriorityUser,
   sleep,
@@ -16,9 +16,6 @@ import {
 
 const CONCURRENCY = 5;
 const MAX_DAY_ATTEMPTS = 3;
-const BAD_PASSWORD_MSG = `<tg-emoji emoji-id="5879813604068298387">⭕️</tg-emoji> ورود به سماد با رمز ذخیره‌شده ممکن نشد.
-
-رمز عبور سماد اشتباه است؛ لطفا دوباره در ربات لاگین کنید.`;
 
 function sortUsersByReservePriority(users) {
   return [...users].sort((a, b) => {
@@ -105,31 +102,11 @@ async function reserveForUser(user, weekStartDate, pool, bot) {
     } catch (e) {
       if (e.code !== "INVALID_TOKEN") throw e;
 
-      let resalt;
-      try {
-        resalt = await loginUser(user.username, user.password);
-      } catch (loginErr) {
-        console.error(`[AUTO] login unavailable user=${user.id}`, loginErr?.message || loginErr);
-        return;
-      }
-
-      if (resalt?.access_token) {
-        await saveSession(pool, user.id, user.username, user.password, resalt);
-        user.access_token = resalt.access_token;
-        gender = await detectUserGender(resalt.access_token);
-        user.gender = gender;
-        bySelf = await fetchProgramsBySelf(resalt.access_token, weekStartDate, gender);
-      } else if (isBadCredentials(resalt)) {
-        await logoutUser(pool, user.id);
-        bot.sendMessage(user.id, BAD_PASSWORD_MSG, {
-          reply_markup: buildHomeKeyboard(false),
-          parse_mode: "HTML",
-        });
-        return;
-      } else {
-        console.error(`[AUTO] login unexpected user=${user.id}`, resalt);
-        return;
-      }
+      const renewed = await renewSession(pool, user, bot);
+      if (!renewed.ok) return;
+      gender = await detectUserGender(renewed.token);
+      user.gender = gender;
+      bySelf = await fetchProgramsBySelf(renewed.token, weekStartDate, gender);
     }
 
     const allPrograms = Object.values(bySelf).flat();
@@ -330,12 +307,9 @@ export async function reserveForUsers(users, weekStartDate, pool, bot, adminToke
           gender = await detectUserGender(user.access_token);
         } catch (e) {
           if (e.code === "INVALID_TOKEN") {
-            const resalt = await loginUser(user.username, user.password);
-            if (resalt?.access_token) {
-              await saveSession(pool, user.id, user.username, user.password, resalt);
-              user.access_token = resalt.access_token;
-              gender = await detectUserGender(user.access_token);
-            }
+            const renewed = await renewSession(pool, user, bot);
+            if (!renewed.ok) return;
+            gender = await detectUserGender(user.access_token);
           }
         }
         user.gender = gender;

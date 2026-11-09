@@ -27,7 +27,7 @@ import {
   sendRichMessage,
 } from "../utils/index.js";
 import { getSelfWeekPrograms } from "../api/services.js";
-import { runWeeklyReminders } from "./reminders.js";
+import { checkUserSessions, runWeeklyReminders } from "./reminders.js";
 import config from "../config.js";
 
 let running = false;
@@ -318,6 +318,10 @@ async function notifyNewlyOpenedSelves(bot, adminToken, pool) {
 }
 
 export function startAutoReserve(pool, bot) {
+  const runSessionCheck = () => checkUserSessions(pool, bot).catch((e) => console.error("[SESSION] error:", e));
+  runSessionCheck();
+  cron.schedule("0 9 * * *", runSessionCheck, { timezone: "Asia/Tehran" });
+
   // every sunday at 20:18
   cron.schedule(
     "34 20 * * 0",
@@ -351,7 +355,7 @@ export function startAutoReserve(pool, bot) {
         return;
       }
 
-      const adminToken = await getSamadAccessToken(pool);
+      const adminToken = await getSamadAccessToken(pool, bot);
       if (!adminToken) {
         console.log("[CRON] no admin token");
         return;

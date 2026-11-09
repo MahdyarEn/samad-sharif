@@ -10,7 +10,13 @@ export function isBadCredentials(data) {
   return data?.error === "invalid_grant" && data?.error_description === "Bad credentials";
 }
 
-export async function loginUser(username, password) {
+export function isInvalidCaptcha(data) {
+  return data?.messageResource === "CAPTCHA_IS_INVALID";
+}
+
+const CLIENT_AUTH = "Basic c2FtYWQtbW9iaWxlOnNhbWFkLW1vYmlsZS1zZWNyZXQ=";
+
+export async function loginUser(username, password, captcha) {
   username = safeDecrypt(username);
   password = safeDecrypt(password);
   return api
@@ -20,14 +26,31 @@ export async function loginUser(username, password) {
         grant_type: "password",
         username,
         password,
+        ...(captcha && { captchaText: captcha.text, validation: captcha.validation, nonce: captcha.nonce }),
       }),
       {
         headers: {
-          authorization: "Basic c2FtYWQtbW9iaWxlOnNhbWFkLW1vYmlsZS1zZWNyZXQ=",
+          authorization: CLIENT_AUTH,
         },
       },
     )
     .then(({ data }) => data);
+}
+
+export async function refreshSession(refreshToken) {
+  return api
+    .post(`/oauth/token`, qs.stringify({ grant_type: "refresh_token", refresh_token: refreshToken }), {
+      headers: {
+        authorization: CLIENT_AUTH,
+      },
+    })
+    .then(({ data }) => data);
+}
+
+export async function fetchCaptcha(nonce) {
+  return api
+    .post(`/rest/captcha`, { nonce }, { headers: { "Content-Type": "application/json" } })
+    .then(({ data }) => data?.payload);
 }
 
 export async function getSelfWeekPrograms(token, weekStartDate, selfId = 1, options = {}) {
