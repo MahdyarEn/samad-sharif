@@ -90,7 +90,7 @@ async function fetchProgramsBySelf(token, weekStartDate, gender) {
   return bySelf;
 }
 
-async function reserveForUser(user, weekStartDate, pool, bot) {
+async function reserveForUser(user, weekStartDate, pool, bot, waitSelvesReady = true) {
   if (!user?.username) return;
 
   try {
@@ -130,6 +130,7 @@ async function reserveForUser(user, weekStartDate, pool, bot) {
       const day = uDays[dayIndex];
       const isLastDay = dayIndex === uDays.length - 1;
       const weekFood = getWeekFoodDays(user, weekStartDate).find((d) => d.english === day.english)?.food;
+      if (!weekFood && !waitSelvesReady) continue;
       const weekSelfId = weekFood ? resolveSelfId(weekFood.selfId, gender) : null;
       const dayProgramsAll = (weekFood ? bySelf[weekSelfId] || [] : allPrograms).filter((p) => p.dayTranslated === day.english);
       if (dayProgramsAll.length === 0) {
@@ -314,14 +315,17 @@ export async function reserveForUsers(users, weekStartDate, pool, bot, adminToke
         }
         user.gender = gender;
 
-        const ready = await userSelvesReady(user, gender, pendingDays);
-        if (!ready) {
+        // days with a weekly pick do not wait for wait_selves
+        const weekDays = new Set(getWeekFoodDays(user, weekStartDate).map((d) => d.english));
+        const priorityDays = pendingDays.filter((d) => !weekDays.has(d.english));
+        const ready = priorityDays.length > 0 && (await userSelvesReady(user, gender, priorityDays));
+        if (!ready && priorityDays.length === pendingDays.length) {
           console.log(
             `[RESERVE] user=${user.id} gender=${gender} wait_selves not ready selves=[${resolveWaitSelves(user.wait_selves, gender).join(",")}] pending=[${pendingDays.map((d) => d.english).join(",")}], skip`,
           );
           return;
         }
-        return reserveForUser(user, weekStartDate, pool, bot);
+        return reserveForUser(user, weekStartDate, pool, bot, ready);
       }),
     );
     if (i + CONCURRENCY < list.length) {
